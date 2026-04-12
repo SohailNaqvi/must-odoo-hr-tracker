@@ -489,5 +489,350 @@ Error generating stack: `+o.message+`
 })();
 </script>
 
+
+<script>
+// ===== FORWARDING SYSTEM UI =====
+(function() {
+  let forwardModal = null;
+  
+  function createForwardModal() {
+    if (forwardModal) return forwardModal;
+    const modal = document.createElement('div');
+    modal.id = 'forward-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center;padding:16px;font-family:Inter,-apple-system,sans-serif;';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.2);width:100%;max-width:480px;overflow:hidden;">
+        <div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <h3 id="fwd-modal-title" style="font-size:16px;font-weight:600;color:#1B3A5C;margin:0;">Forward Task</h3>
+            <p id="fwd-modal-subtitle" style="font-size:12px;color:#6b7280;margin:4px 0 0;">Forwarding to Registrar for approval</p>
+          </div>
+          <button id="fwd-close" style="width:32px;height:32px;border-radius:8px;border:none;background:#f3f4f6;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#6b7280;">&times;</button>
+        </div>
+        <div style="padding:24px;">
+          <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Title *</label>
+            <input id="fwd-title" type="text" placeholder="e.g. Policy draft ready for review" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;outline:none;" />
+          </div>
+          <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Information / Details</label>
+            <textarea id="fwd-description" rows="4" placeholder="Provide context, supporting details, or specific items requiring attention..." style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;resize:none;box-sizing:border-box;outline:none;"></textarea>
+          </div>
+          <div id="fwd-info-target" style="margin-bottom:16px;display:none;">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Forward to</label>
+            <select id="fwd-target" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+              <option value="registrar">Registrar</option>
+              <option value="vpOps">VP Operations</option>
+              <option value="admin">System Administrator</option>
+            </select>
+          </div>
+          <div id="fwd-error" style="display:none;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:12px;margin-bottom:12px;"></div>
+        </div>
+        <div style="padding:16px 24px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px;background:#f9fafb;">
+          <button id="fwd-cancel" style="padding:8px 16px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-size:13px;font-family:inherit;cursor:pointer;color:#374151;">Cancel</button>
+          <button id="fwd-submit" style="padding:8px 20px;border:none;border-radius:8px;background:#E8792B;color:#fff;font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;">Forward</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    
+    modal.querySelector('#fwd-close').addEventListener('click', () => closeForwardModal());
+    modal.querySelector('#fwd-cancel').addEventListener('click', () => closeForwardModal());
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeForwardModal(); });
+    
+    forwardModal = modal;
+    return modal;
+  }
+  
+  function closeForwardModal() {
+    const modal = document.getElementById('forward-modal');
+    if (modal) modal.style.display = 'none';
+  }
+  
+  function openForwardModal(taskId, forwardType, taskLabel) {
+    const modal = createForwardModal();
+    const title = modal.querySelector('#fwd-modal-title');
+    const subtitle = modal.querySelector('#fwd-modal-subtitle');
+    const infoTarget = modal.querySelector('#fwd-info-target');
+    const errorEl = modal.querySelector('#fwd-error');
+    
+    modal.querySelector('#fwd-title').value = '';
+    modal.querySelector('#fwd-description').value = '';
+    errorEl.style.display = 'none';
+    
+    if (forwardType === 'approval') {
+      title.textContent = 'Forward for Approval';
+      subtitle.textContent = 'This will be forwarded to the Registrar for approval';
+      subtitle.style.color = '#E8792B';
+      infoTarget.style.display = 'none';
+    } else {
+      title.textContent = 'Forward for Information';
+      subtitle.textContent = 'Share task information with another role';
+      subtitle.style.color = '#1B3A5C';
+      infoTarget.style.display = 'block';
+    }
+    
+    modal.style.display = 'flex';
+    modal.querySelector('#fwd-title').focus();
+    
+    // Set up submit handler
+    const submitBtn = modal.querySelector('#fwd-submit');
+    const newBtn = submitBtn.cloneNode(true);
+    submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+    
+    newBtn.addEventListener('click', async () => {
+      const fwdTitle = modal.querySelector('#fwd-title').value.trim();
+      const fwdDesc = modal.querySelector('#fwd-description').value.trim();
+      const fwdTarget = modal.querySelector('#fwd-target').value;
+      
+      if (!fwdTitle) {
+        errorEl.textContent = 'Title is required';
+        errorEl.style.display = 'block';
+        return;
+      }
+      
+      newBtn.disabled = true;
+      newBtn.textContent = 'Forwarding...';
+      
+      try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        // Try to get token from the app's state
+        let authToken = null;
+        // Look for token in various storage locations
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          const val = sessionStorage.getItem(key);
+          if (val && val.startsWith('eyJ')) { authToken = val; break; }
+        }
+        if (!authToken) {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const val = localStorage.getItem(key);
+            if (val && val.startsWith('eyJ')) { authToken = val; break; }
+          }
+        }
+        // Fallback: try to find it in memory via a hidden element we'll create
+        if (!authToken) {
+          const tokenEl = document.getElementById('__app_token');
+          if (tokenEl) authToken = tokenEl.value;
+        }
+        
+        const resp = await fetch('/api/tasks/' + taskId + '/forward', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (authToken || '')
+          },
+          body: JSON.stringify({
+            forwardType: forwardType,
+            title: fwdTitle,
+            description: fwdDesc,
+            forwardedTo: forwardType === 'info' ? fwdTarget : 'registrar'
+          })
+        });
+        
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Forward failed');
+        
+        closeForwardModal();
+        
+        // Show success notification
+        showForwardNotification(forwardType === 'approval' 
+          ? 'Forwarded to Registrar for approval' 
+          : 'Forwarded for information', 'success');
+        
+        // Refresh the page data by clicking the refresh button
+        const refreshBtn = document.querySelector('button[title="Refresh data"]');
+        if (refreshBtn) refreshBtn.click();
+        
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+      } finally {
+        newBtn.disabled = false;
+        newBtn.textContent = 'Forward';
+      }
+    });
+  }
+  
+  function showForwardNotification(msg, type) {
+    const notif = document.createElement('div');
+    notif.style.cssText = `position:fixed;top:16px;right:16px;z-index:99999;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:500;font-family:Inter,sans-serif;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);transition:opacity 0.3s;${type==='success'?'background:#059669;color:white;':'background:#dc2626;color:white;'}`;
+    notif.textContent = msg;
+    document.body.appendChild(notif);
+    setTimeout(() => { notif.style.opacity = '0'; setTimeout(() => notif.remove(), 300); }, 3000);
+  }
+  
+  // Store token for forwarding API calls
+  function captureToken() {
+    const origFetch = window.fetch;
+    window.fetch = function(...args) {
+      if (args[1] && args[1].headers) {
+        const headers = args[1].headers;
+        let auth = null;
+        if (headers instanceof Headers) {
+          auth = headers.get('Authorization');
+        } else if (typeof headers === 'object') {
+          auth = headers.Authorization || headers.authorization;
+        }
+        if (auth && auth.startsWith('Bearer ')) {
+          const token = auth.slice(7);
+          let el = document.getElementById('__app_token');
+          if (!el) {
+            el = document.createElement('input');
+            el.type = 'hidden';
+            el.id = '__app_token';
+            document.body.appendChild(el);
+          }
+          el.value = token;
+        }
+      }
+      return origFetch.apply(this, args);
+    };
+  }
+  captureToken();
+  
+  // Observe DOM to inject forward buttons into task status dropdowns
+  const observer = new MutationObserver(() => {
+    // Find all task status dropdowns (only for directorHR role)
+    const tokenEl = document.getElementById('__app_token');
+    if (!tokenEl || !tokenEl.value) return;
+    
+    // Check if user is directorHR by looking at the role badge
+    const roleBadge = document.querySelector('[class*="rounded"][class*="text-xs"][class*="font-medium"]');
+    const isEditor = roleBadge && (roleBadge.textContent.includes('Editor') || roleBadge.textContent.includes('Admin'));
+    if (!isEditor) return;
+    
+    document.querySelectorAll('select.text-xs').forEach(sel => {
+      if (sel.dataset.forwardInjected) return;
+      // Check if this is a task status dropdown
+      const options = Array.from(sel.options).map(o => o.value);
+      if (!options.includes('pending') || !options.includes('completed')) return;
+      
+      sel.dataset.forwardInjected = 'true';
+      
+      // Add forwarding options to the dropdown
+      if (!options.includes('forwarded_approval')) {
+        const optApproval = document.createElement('option');
+        optApproval.value = 'forwarded_approval';
+        optApproval.textContent = '→ Fwd for Approval';
+        optApproval.style.color = '#E8792B';
+        sel.appendChild(optApproval);
+      }
+      if (!options.includes('forwarded_info')) {
+        const optInfo = document.createElement('option');
+        optInfo.value = 'forwarded_info';
+        optInfo.textContent = '→ Fwd for Info';
+        optInfo.style.color = '#1B3A5C';
+        sel.appendChild(optInfo);
+      }
+      
+      // Intercept selection of forward options
+      sel.addEventListener('change', function(e) {
+        const val = e.target.value;
+        if (val === 'forwarded_approval' || val === 'forwarded_info') {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+          
+          // Reset dropdown to previous value
+          const prevStatus = sel.dataset.prevStatus || 'pending';
+          sel.value = prevStatus;
+          
+          // Get task ID from the DOM context
+          const subRow = sel.closest('[class*="rounded-lg"][class*="border"]');
+          const taskLabel = subRow ? subRow.querySelector('[class*="text-sm"][class*="text-gray"]')?.textContent || '' : '';
+          
+          // Find task ID - look at the star rating or edit button IDs
+          let taskId = null;
+          const editBtn = subRow ? subRow.querySelector('button[class*="rounded-md"]') : null;
+          // Try onclick handler
+          const statusSelect = sel;
+          const onChangeStr = statusSelect.getAttribute('onchange') || '';
+          
+          // Alternative: use the React fiber to find the task ID
+          const fiberKey = Object.keys(subRow || {}).find(k => k.startsWith('__reactFiber'));
+          if (fiberKey && subRow[fiberKey]) {
+            let fiber = subRow[fiberKey];
+            for (let i = 0; i < 20; i++) {
+              if (fiber.memoizedProps && fiber.memoizedProps.children) {
+                const props = fiber.memoizedProps;
+                if (props.onChange && typeof props.onChange === 'function') {
+                  // Found the select's onChange - extract task ID from closure
+                  break;
+                }
+              }
+              if (fiber.return) fiber = fiber.return;
+              else break;
+            }
+          }
+          
+          // Get task ID from the select's React event handler
+          // The select onChange calls Hc(H.id, value) - we need H.id
+          // Parse it from sibling elements or use a data attribute approach
+          
+          // Workaround: use the API to find the task by searching
+          fetch('/api/roadmap', {
+            headers: { 'Authorization': 'Bearer ' + (document.getElementById('__app_token')?.value || '') }
+          })
+          .then(r => r.json())
+          .then(data => {
+            let foundId = null;
+            (data.roadmap || []).forEach(phase => {
+              (phase.tasks || []).forEach(task => {
+                if (task.label === taskLabel.trim()) {
+                  foundId = task.id;
+                }
+              });
+            });
+            if (foundId) {
+              const fwdType = val === 'forwarded_approval' ? 'approval' : 'info';
+              openForwardModal(foundId, fwdType, taskLabel);
+            } else {
+              showForwardNotification('Could not identify task. Please try again.', 'error');
+            }
+          });
+          
+          return false;
+        }
+        sel.dataset.prevStatus = val;
+      }, true);
+      
+      // Store current value
+      sel.dataset.prevStatus = sel.value;
+    });
+    
+    // ===== Show forwarded status badges on tasks =====
+    document.querySelectorAll('[class*="rounded-full"][class*="text-xs"][class*="font-medium"]').forEach(badge => {
+      if (badge.textContent === 'Forwarded' || badge.dataset.fwdStyled) return;
+      if (badge.style.backgroundColor && badge.closest('[class*="sub-row"], [class*="rounded-lg"][class*="border"]')) {
+        // Check for forwarded_approval or forwarded_info status in sibling select
+        const parent = badge.closest('[class*="rounded-lg"][class*="border"]');
+        if (parent) {
+          const sel = parent.querySelector('select');
+          if (sel && sel.value === 'forwarded_approval') {
+            badge.textContent = 'Fwd: Approval';
+            badge.style.backgroundColor = '#FFF7ED';
+            badge.style.color = '#E8792B';
+            badge.style.borderColor = '#FDBA74';
+            badge.dataset.fwdStyled = 'true';
+          } else if (sel && sel.value === 'forwarded_info') {
+            badge.textContent = 'Fwd: Info';
+            badge.style.backgroundColor = '#EFF6FF';
+            badge.style.color = '#1B3A5C';
+            badge.style.borderColor = '#93C5FD';
+            badge.dataset.fwdStyled = 'true';
+          }
+        }
+      }
+    });
+  });
+  
+  observer.observe(document.body, { childList: true, subtree: true });
+  
+  // Make openForwardModal globally accessible
+  window.__openForwardModal = openForwardModal;
+})();
+</script>
+
 </body>
 </html>

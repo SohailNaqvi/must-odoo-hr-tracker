@@ -100,3 +100,18 @@ CREATE TABLE IF NOT EXISTS audit_log (
   new_value     TEXT,
   created_at    TEXT    DEFAULT (datetime('now'))
 );
+
+-- Forwarded items (approval requests & info shares)
+CREATE TABLE IF NOT EXISTS forwarded_items (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id         INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  forward_type    TEXT    NOT NULL CHECK(forward_type IN ('approval','info')),
+  title           TEXT    NOT NULL,
+  description     TEXT    DEFAULT '',
+  forwarded_by    INTEGER NOT NULL REFERENCES users(id),
+  forwarded_to    TEXT    NOT NULL,
+  forwarded_at    TEXT    DEFAULT (datetime('now')),
+  status          TEXT    NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','noted')),
+  responded_at    TEXT,
+  response_note   TEXT    DEFAULT ''
+);

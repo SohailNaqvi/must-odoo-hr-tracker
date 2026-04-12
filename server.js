@@ -371,6 +371,86 @@ app.put("/api/tasks/:id", authMiddleware, requireRole("admin", "directorHR"), (r
 });
 
 /* ══════════════════════════════════════════════════════════
+   TASK FORWARDING (Director HR)
+   ══════════════════════════════════════════════════════════ */
+
+// Forward a task for approval or info
+app.post("/api/tasks/:id/forward", authMiddleware, requireRole("admin", "directorHR"), (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const task = getP("SELECT * FROM tasks WHERE id = ?", [taskId]);
+  if (!task) return res.status(404).json({ error: "Task not found" });
+
+  const { forwardType, title, description } = req.body;
+  if (!forwardType || !title) return res.status(400).json({ error: "Forward type and title required" });
+  if (!["approval", "info"].includes(forwardType)) return res.status(400).json({ error: "Invalid forward type" });
+
+  const forwardedTo = forwardType === "approval" ? "registrar" : req.body.forwardedTo || "registrar";
+
+  const { lastInsertRowid } = runP(
+    "INSERT INTO forwarded_items (task_id, forward_type, title, description, forwarded_by, forwarded_to) VALUES (?, ?, ?, ?, ?, ?)",
+    [taskId, forwardType, title, description || "", req.user.id, forwardedTo]
+  );
+
+  // Update task status
+  const newStatus = forwardType === "approval" ? "forwarded_approval" : "forwarded_info";
+  runP("UPDATE tasks SET status = ?, updated_at = datetime('now') WHERE id = ?", [newStatus, taskId]);
+
+  logAudit(req.user.id, "forward_task_" + forwardType, "task", taskId, task.status, newStatus);
+  
+  const item = getP("SELECT * FROM forwarded_items WHERE id = ?", [lastInsertRowid]);
+  res.json({ forwardedItem: item, task: getP("SELECT * FROM tasks WHERE id = ?", [taskId]) });
+});
+
+// Get all forwarded items (visible to registrar & admin too)
+app.get("/api/forwarded", authMiddleware, (req, res) => {
+  const items = allP(`
+    SELECT fi.*, t.label as task_label, t.category as task_category, 
+           p.title as phase_title, p.phase_number,
+           u.display_name as forwarded_by_name
+    FROM forwarded_items fi
+    JOIN tasks t ON fi.task_id = t.id
+    JOIN phases p ON t.phase_id = p.id
+    JOIN users u ON fi.forwarded_by = u.id
+    ORDER BY fi.forwarded_at DESC
+  `);
+  res.json({ forwardedItems: items });
+});
+
+// Respond to a forwarded item (registrar approves, or marks as noted)
+app.put("/api/forwarded/:id/respond", authMiddleware, requireRole("admin", "registrar"), (req, res) => {
+  const itemId = parseInt(req.params.id);
+  const item = getP("SELECT * FROM forwarded_items WHERE id = ?", [itemId]);
+  if (!item) return res.status(404).json({ error: "Not found" });
+
+  const { status, responseNote } = req.body;
+  if (!status) return res.status(400).json({ error: "Status required" });
+
+  runP("UPDATE forwarded_items SET status = ?, response_note = ?, responded_at = datetime('now') WHERE id = ?",
+    [status, responseNote || "", itemId]);
+
+  // If approved, mark the task as completed
+  if (status === "approved") {
+    runP("UPDATE tasks SET status = 'completed', completed_date = date('now'), completed_by = 'Registrar (approved)', updated_at = datetime('now') WHERE id = ?", [item.task_id]);
+  }
+
+  logAudit(req.user.id, "respond_forward", "forwarded_item", itemId, item.status, status);
+  res.json({ forwardedItem: getP("SELECT * FROM forwarded_items WHERE id = ?", [itemId]) });
+});
+
+// Get forwarded items for a specific task
+app.get("/api/tasks/:id/forwards", authMiddleware, (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const items = allP(`
+    SELECT fi.*, u.display_name as forwarded_by_name
+    FROM forwarded_items fi
+    JOIN users u ON fi.forwarded_by = u.id
+    WHERE fi.task_id = ?
+    ORDER BY fi.forwarded_at DESC
+  `, [taskId]);
+  res.json({ forwardedItems: items });
+});
+
+/* ══════════════════════════════════════════════════════════
    PROGRESS REPORTS
    ══════════════════════════════════════════════════════════ */
 
