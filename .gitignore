@@ -1,0 +1,3 @@
+node_modules/
+db/tracker.db
+.DS_Store

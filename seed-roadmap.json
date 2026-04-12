@@ -1,0 +1,183 @@
+[
+  {
+    "phase": 0, "title": "Immediate pre-work — this week's deliverables",
+    "subtitle": "From today's meeting — must be sent to management before any Odoo work begins",
+    "timeline": "This week",
+    "tasks": [
+      { "label": "Email: list of mandatory + optional employee master data fields", "category": "action", "status": "completed", "completedDate": "2026-04-05", "completedBy": "Ms. Nasra Naqvi", "deliverable": "Mandatory: Employee Name, Biometric Code, Father Name, Work Mobile, Work Email, CNIC, Payroll Status, Gender, Joining Date, Date of Birth, Department, Designation, Employment Nature. Optional: Department Code, Contact No., Religion, Domicile/Province, Current Position, Tax Payer Status, Visiting Campuses, Report To." },
+      { "label": "Email: list of documents to be uploaded per employee", "category": "action", "status": "completed", "completedDate": "2026-04-05", "completedBy": "Ms. Nasra Naqvi", "deliverable": "Mandatory: Attested Educational Docs, CNIC, Council Registration Card/Certificate, Photograph, HEC Equivalence Certificate, Resume, Appointment Letter. Optional: Domicile, Experience Certificate, Thesis Title & Abstract, Job Offer, Joining Report, Undertaking." },
+      { "label": "Email: version 1.2 policy questions — leave, attendance, salary, probation, notice period", "category": "action", "status": "completed", "completedDate": "2026-04-05", "completedBy": "Ms. Nasra Naqvi", "deliverable": "Policy observations: Faculty attendance rules (Section 5.3) — revision needed. Salary Bands (Section 7.3) — to be defined. Employment Contracts (Section 8.1) — revision needed." },
+      { "label": "Confirm Odoo as the single system (not Udyog)", "category": "action", "status": "completed", "completedDate": "2026-04-05", "completedBy": "Ms. Nasra Naqvi", "deliverable": "Confirmed — Odoo is the single HR system." },
+      { "label": "Designate Odoo administrator from HR team", "category": "action", "status": "completed", "completedDate": "2026-04-05", "completedBy": "Ms. Nasra Naqvi", "deliverable": "Designated: Ms. Nasra Naqvi (Director HR) as Odoo administrator." }
+    ],
+    "odooSteps": [],
+    "prerequisites": [],
+    "authorities": ["Registrar — coordinate & accelerate all pending policy approvals", "Vice Chancellor — centralized decisions on key HR parameters", "BOG — formal policy approvals if required"],
+    "note": "Key insight from meeting: The system does not think automatically — every rule in Odoo must first be decided on paper."
+  },
+  {
+    "phase": 1, "title": "Policy foundation — the bedrock of everything",
+    "subtitle": "Nothing in Odoo can be correctly configured without these approvals",
+    "timeline": "Weeks 1–3",
+    "tasks": [
+      { "label": "Employee categories policy (permanent, contract, visiting faculty; admin; support)", "category": "policy", "status": "in_progress" },
+      { "label": "Working hours policy — faculty flexible vs admin fixed", "category": "policy" },
+      { "label": "Leave policy — casual, sick, earned, LWP entitlements per category", "category": "policy" },
+      { "label": "Probation period — 3 or 6 months, faculty vs admin separately", "category": "policy" },
+      { "label": "Notice period — resignation & termination, faculty vs admin", "category": "policy" },
+      { "label": "Salary & compensation policy — monthly salary + per-lecture for visiting", "category": "policy" },
+      { "label": "Attendance deduction rules — grace time, half-day trigger, late deduction formula", "category": "policy" },
+      { "label": "HEC-aligned faculty recruitment policy", "category": "policy" },
+      { "label": "HR Policy Manual v1.0 (consolidating all approved policies)", "category": "document", "status": "in_progress" },
+      { "label": "Organogram (approved hierarchy: Lecturer → HoD → Dean → VC/Rector)", "category": "document" },
+      { "label": "Employment contract templates — 4 versions: permanent, contract, visiting, admin", "category": "document" }
+    ],
+    "odooSteps": ["None — Odoo configuration cannot begin without approved policies"],
+    "prerequisites": [],
+    "authorities": ["Board of Governors — all foundational policies", "Vice Chancellor — organogram and category definitions"],
+    "note": "Faculty and admin must never share the same leave, attendance, or salary structures in Odoo."
+  },
+  {
+    "phase": 2, "title": "Organizational structure & employee master data",
+    "subtitle": "The core foundation of Odoo — every other module depends on this",
+    "timeline": "Weeks 2–4",
+    "tasks": [
+      { "label": "Employee data collection form (mandatory vs optional fields separated)", "category": "document" },
+      { "label": "Document upload checklist — CNIC, degrees, experience letters, appointment letter, contract, photo", "category": "document" },
+      { "label": "Data collection drive plan (who collects from whom, by when)", "category": "document" }
+    ],
+    "odooSteps": ["Create Schools as departments (Engineering, Nursing, Management, etc.)", "Create sub-departments within each School", "Set up job positions with correct hierarchy", "Create employee profiles — mandatory fields only", "Upload signed contracts and required documents", "Set reporting lines (Lecturer → HoD → Dean → VC)"],
+    "prerequisites": ["Approved organogram", "Approved employee categories"],
+    "authorities": ["Director HR — validates all employee profiles", "HoDs — verify faculty data in their departments"],
+    "note": "No employee should exist in Odoo without a complete profile. If it is not in Odoo, it does not exist officially."
+  },
+  {
+    "phase": 3, "title": "Attendance configuration & biometric integration",
+    "subtitle": "Upgrade existing biometric infrastructure to full Odoo integration",
+    "timeline": "Weeks 3–5",
+    "tasks": [
+      { "label": "Attendance parameters summary sheet", "category": "document" },
+      { "label": "Biometric machine integration record", "category": "document" },
+      { "label": "Missing punch and exceptions register", "category": "document" }
+    ],
+    "odooSteps": ["Create 3 work schedules: admin strict (9–5), faculty flexible, visiting lecture-based", "Set late arrival grace time per schedule", "Configure half-day deduction triggers", "Sync biometric machines with Odoo Attendance", "Assign each employee to correct work schedule", "Set up daily HR monitoring view"],
+    "prerequisites": ["Attendance deduction rules (approved)", "Working hours policy (approved)", "Grace time and half-day policy (approved)"],
+    "authorities": ["Director HR — approves attendance rules before configuration", "IT team — biometric sync technical implementation"],
+    "note": "Faculty attendance must never be treated identically to admin attendance. Three distinct schedules are non-negotiable."
+  },
+  {
+    "phase": 4, "title": "Leave management",
+    "subtitle": "Replaces all verbal leave approvals with system-driven workflows",
+    "timeline": "Weeks 4–6",
+    "tasks": [
+      { "label": "Opening leave balance register (migration of existing balances)", "category": "document" },
+      { "label": "Leave allocation schedule (annual entitlements by category)", "category": "document" }
+    ],
+    "odooSteps": ["Create leave types: Casual, Sick, Earned, LWP, Study Leave (faculty)", "Set annual entitlements by employee category", "Configure carry-forward rules", "Set approval workflow: Employee → HoD → HR (3-tier)", "Allocate opening leave balances", "Mark visiting faculty as ineligible for paid leave"],
+    "prerequisites": ["Leave types and entitlements per category (approved)", "Carry-forward rules (approved)", "Leave approval hierarchy (approved)"],
+    "authorities": ["Director HR — configures and activates the module", "HoDs — first approvers in the workflow"],
+    "note": "From go-live, any leave not applied in Odoo will be treated as absent."
+  },
+  {
+    "phase": 5, "title": "Payroll implementation",
+    "subtitle": "Most critical and complex phase — run parallel for 2 months before going live",
+    "timeline": "Weeks 6–10",
+    "tasks": [
+      { "label": "Salary grade chart (approved by Finance + BOG)", "category": "document" },
+      { "label": "Payroll input template for monthly variables", "category": "document" },
+      { "label": "Loan register (existing advances to be migrated)", "category": "document" },
+      { "label": "Tax calculation sheet (per employee where applicable)", "category": "document" }
+    ],
+    "odooSteps": ["Create 4 salary structures: permanent faculty, contract faculty, admin, visiting", "Configure allowances (house, medical, transport)", "Configure deductions (late, EOBI, loan installments)", "Link attendance and leave to payroll engine", "Assign each employee to correct salary structure", "Run 2 months parallel payroll (Odoo vs manual)", "Generate and archive first official payslips"],
+    "prerequisites": ["Salary bands approved", "Salary structure components defined", "Per-lecture rate for visiting faculty", "Attendance fully functional", "Leave management live"],
+    "authorities": ["BOG — salary bands and grade chart", "Finance Department — payroll go-live sign-off", "Director HR — monthly payroll closure"],
+    "note": "Parallel running is mandatory — processing live payroll without validation is the most common and costly Odoo implementation mistake."
+  },
+  {
+    "phase": 6, "title": "Contracts, probation & confirmations",
+    "subtitle": "Critical for HEC compliance — illegal over-probation must be prevented",
+    "timeline": "Weeks 8–12",
+    "tasks": [
+      { "label": "Appointment letter template (per category)", "category": "document" },
+      { "label": "Contract templates v1.0 (4 versions)", "category": "document" },
+      { "label": "Probation completion notice template", "category": "document" },
+      { "label": "Confirmation/regularization letter template", "category": "document" },
+      { "label": "Contract renewal letter template", "category": "document" }
+    ],
+    "odooSteps": ["Assign contract type to every employee", "Set probation end dates with alerts", "Configure 30-day pre-probation-end alert to Director HR", "Set contract expiry alerts", "Generate confirmation letters from Odoo"],
+    "prerequisites": ["Probation period per category (approved)", "Confirmation criteria (approved)", "Contract types and renewal rules (approved)"],
+    "authorities": ["Registrar — probation completion and confirmation", "Director HR — contract renewals"],
+    "note": "HEC audits frequently check whether employees were held in probation beyond the policy limit."
+  },
+  {
+    "phase": 7, "title": "Recruitment workflow (end-to-end in Odoo)",
+    "subtitle": "Eliminates Excel-based recruitment — all stages recorded in system",
+    "timeline": "Month 3–4",
+    "tasks": [
+      { "label": "Job advertisement template (faculty and admin versions)", "category": "document" },
+      { "label": "Application form (online via Odoo portal)", "category": "document" },
+      { "label": "Shortlisting criteria matrix per job category", "category": "document" },
+      { "label": "Interview score sheet (structured, per HEC criteria)", "category": "document" },
+      { "label": "Offer/appointment letter template (auto-generated)", "category": "document" }
+    ],
+    "odooSteps": ["Create pipeline: Application → Shortlisted → Interview → Scored → Offer → Appointed", "Configure interview scheduling", "Set up interview score entry forms", "Link appointed candidate to employee profile", "Generate appointment letter automatically"],
+    "prerequisites": ["HEC-aligned faculty recruitment policy", "Merit criteria and scoring rubric", "Selection committee composition"],
+    "authorities": ["Selection Committee + Rector — faculty appointments", "Registrar — admin staff appointments"],
+    "note": "Every recruitment decision must be recorded in Odoo. HEC compliance audits require documented evidence of merit-based hiring."
+  },
+  {
+    "phase": 8, "title": "Performance management (Academic HR priority)",
+    "subtitle": "Faculty evaluation — teaching, research, institutional service",
+    "timeline": "Month 4–5",
+    "tasks": [
+      { "label": "Faculty performance evaluation policy — 3 pillars", "category": "policy" },
+      { "label": "Staff KPI framework for admin roles", "category": "policy" },
+      { "label": "Annual appraisal calendar (academic year cycle)", "category": "policy" },
+      { "label": "Promotion and increment criteria linked to performance", "category": "policy" },
+      { "label": "Faculty self-assessment form (annual)", "category": "document" },
+      { "label": "HoD / supervisor evaluation form", "category": "document" },
+      { "label": "Student feedback aggregation form", "category": "document" },
+      { "label": "Performance review meeting record template", "category": "document" },
+      { "label": "Research and publication log per faculty member", "category": "document" }
+    ],
+    "odooSteps": ["Create appraisal templates (faculty and admin separately)", "Set up annual appraisal cycle with notifications", "Configure workflow: self-assessment → supervisor → HR → meeting", "Upload research publications and feedback scores"],
+    "prerequisites": [],
+    "authorities": ["Academic Council — faculty evaluation policy", "Director HR — staff appraisal process", "Deans/HoDs — supervisor evaluations"],
+    "note": ""
+  },
+  {
+    "phase": 9, "title": "Discipline & exit management",
+    "subtitle": "HR's legal protection — all disciplinary and separation actions fully documented",
+    "timeline": "Month 5–6",
+    "tasks": [
+      { "label": "Code of conduct (academic and corporate)", "category": "policy" },
+      { "label": "Disciplinary procedure — warning, show-cause, suspension, termination", "category": "policy" },
+      { "label": "Resignation and termination procedure per category", "category": "policy" },
+      { "label": "Clearance process (IT, Library, Finance, HR)", "category": "policy" },
+      { "label": "Final settlement computation rules", "category": "policy" },
+      { "label": "Warning letter template (first, second, final)", "category": "document" },
+      { "label": "Show-cause notice template", "category": "document" },
+      { "label": "Resignation acceptance letter template", "category": "document" },
+      { "label": "No-objection / clearance form (multi-department)", "category": "document" },
+      { "label": "Final settlement computation sheet", "category": "document" },
+      { "label": "Experience / relieving letter template", "category": "document" }
+    ],
+    "odooSteps": ["Set up disciplinary record fields per employee", "Configure exit workflow: resignation → clearance → settlement → relieved", "Link clearance to Finance and IT (multi-department sign-off)", "Generate experience letter automatically", "Archive exited employee records (not deleted)"],
+    "prerequisites": [],
+    "authorities": ["Registrar — resignation acceptance and final settlement", "Director HR — clearance process management"],
+    "note": "Odoo's disciplinary and exit records are MUST's legal evidence."
+  },
+  {
+    "phase": 10, "title": "HR dashboards & management reporting",
+    "subtitle": "Real-time insights for Vice Chancellor, Registrar, and BOG",
+    "timeline": "Month 6+ (ongoing)",
+    "tasks": [
+      { "label": "Monthly HR report template (generated from Odoo)", "category": "document" },
+      { "label": "HR dashboard design spec (for Odoo admin)", "category": "document" }
+    ],
+    "odooSteps": ["Configure headcount dashboard — faculty vs admin, by department", "Build faculty-to-student ratio tracker", "Set up payroll cost by department report", "Configure attendance compliance summary", "Build recruitment pipeline dashboard", "Configure retention and turnover analytics", "Schedule automated monthly reports to VC and Registrar"],
+    "prerequisites": [],
+    "authorities": ["Director HR — report design and distribution", "Odoo/Reporting Lead — technical dashboard configuration"],
+    "note": "One monthly dashboard meeting with VC + Registrar using live Odoo data demonstrates HR has become a strategic function."
+  }
+]
