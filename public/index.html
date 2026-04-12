@@ -692,9 +692,8 @@ Error generating stack: `+o.message+`
   }
   captureToken();
   
-  // Observe DOM to inject forward buttons into task status dropdowns
+  // Observe DOM to inject forward options into task status dropdowns
   const observer = new MutationObserver(() => {
-    // Find all task status dropdowns (only for directorHR role)
     const tokenEl = document.getElementById('__app_token');
     if (!tokenEl || !tokenEl.value) return;
     
@@ -711,63 +710,56 @@ Error generating stack: `+o.message+`
       
       sel.dataset.forwardInjected = 'true';
       
-      // Add forward buttons next to the select dropdown
-      const btnContainer = document.createElement('div');
-      btnContainer.style.cssText = 'display:flex;gap:3px;margin-left:4px;';
+      // Add separator and forward options to the existing dropdown
+      const sep = document.createElement('option');
+      sep.disabled = true;
+      sep.textContent = '───────────────';
+      sel.appendChild(sep);
       
-      const btnApproval = document.createElement('button');
-      btnApproval.textContent = '↗A';
-      btnApproval.title = 'Forward for Approval';
-      btnApproval.style.cssText = 'padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #E8792B;background:#FFF7ED;color:#E8792B;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;';
+      const optApproval = document.createElement('option');
+      optApproval.value = '__forward_approval';
+      optApproval.textContent = '↗ Forward for Approval';
+      sel.appendChild(optApproval);
       
-      const btnInfo = document.createElement('button');
-      btnInfo.textContent = '↗I';
-      btnInfo.title = 'Forward for Info';
-      btnInfo.style.cssText = 'padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #1B3A5C;background:#EFF6FF;color:#1B3A5C;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;';
+      const optInfo = document.createElement('option');
+      optInfo.value = '__forward_info';
+      optInfo.textContent = '↗ Forward for Info';
+      sel.appendChild(optInfo);
       
-      btnContainer.appendChild(btnApproval);
-      btnContainer.appendChild(btnInfo);
-      sel.parentNode.insertBefore(btnContainer, sel.nextSibling);
+      // Store original value for reverting after forward selection
+      let originalValue = sel.value;
       
-      // Find task label and ID when button is clicked
-      function getTaskInfo(btn) {
-        const subRow = btn.closest('[class*="rounded-lg"][class*="border"]');
-        const taskLabel = subRow ? (subRow.querySelector('.text-sm.text-gray-800') || subRow.querySelector('[class*="text-sm"][class*="text-gray"]'))?.textContent?.trim() || '' : '';
-        return { subRow, taskLabel };
-      }
-      
-      function findTaskIdAndForward(taskLabel, forwardType) {
-        const token = document.getElementById('__app_token')?.value || '';
-        fetch('/api/roadmap', {
-          headers: { 'Authorization': 'Bearer ' + token }
-        })
-        .then(r => r.json())
-        .then(data => {
-          let foundId = null;
-          (data.roadmap || []).forEach(phase => {
-            (phase.tasks || []).forEach(task => {
-              if (task.label.trim() === taskLabel) foundId = task.id;
-            });
-          });
-          if (foundId) {
-            openForwardModal(foundId, forwardType, taskLabel);
-          } else {
-            showForwardNotification('Could not identify task. Try refreshing.', 'error');
-          }
-        })
-        .catch(() => showForwardNotification('Failed to load tasks', 'error'));
-      }
-      
-      btnApproval.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const { taskLabel } = getTaskInfo(btnApproval);
-        findTaskIdAndForward(taskLabel, 'approval');
-      });
-      
-      btnInfo.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const { taskLabel } = getTaskInfo(btnInfo);
-        findTaskIdAndForward(taskLabel, 'info');
+      sel.addEventListener('change', (e) => {
+        const val = sel.value;
+        if (val === '__forward_approval' || val === '__forward_info') {
+          // Revert dropdown to original status (forward doesn't change status)
+          sel.value = originalValue;
+          
+          const forwardType = val === '__forward_approval' ? 'approval' : 'info';
+          const subRow = sel.closest('[class*="rounded-lg"][class*="border"]');
+          const taskLabel = subRow ? (subRow.querySelector('.text-sm.text-gray-800') || subRow.querySelector('[class*="text-sm"][class*="text-gray"]'))?.textContent?.trim() || '' : '';
+          
+          // Find task ID and open forward modal
+          const token = document.getElementById('__app_token')?.value || '';
+          fetch('/api/roadmap', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json())
+            .then(data => {
+              let foundId = null;
+              (data.roadmap || []).forEach(phase => {
+                (phase.tasks || []).forEach(task => {
+                  if (task.label.trim() === taskLabel) foundId = task.id;
+                });
+              });
+              if (foundId) {
+                openForwardModal(foundId, forwardType, taskLabel);
+              } else {
+                showForwardNotification('Could not identify task. Try refreshing.', 'error');
+              }
+            })
+            .catch(() => showForwardNotification('Failed to load tasks', 'error'));
+        } else {
+          originalValue = val;
+        }
       });
     });
     
@@ -1097,6 +1089,437 @@ Error generating stack: `+o.message+`
       fetchPendingCount();
     }
   }, 30000);
+})();
+</script>
+
+
+<script>
+// ===== FORCE PASSWORD CHANGE ON FIRST LOGIN =====
+(function() {
+  let pwModalShown = false;
+  
+  // Intercept login responses to detect must_change_password
+  const origFetch = window.fetch;
+  window.fetch = function(...args) {
+    const result = origFetch.apply(this, args);
+    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+    if (url.includes('/api/auth/login')) {
+      result.then(resp => resp.clone().json().then(data => {
+        if (data.user && data.user.mustChangePassword && !pwModalShown) {
+          pwModalShown = true;
+          // Small delay to let the app process login
+          setTimeout(() => showForcePasswordModal(data.token), 500);
+        }
+      }).catch(() => {}));
+    }
+    return result;
+  };
+  
+  function showForcePasswordModal(token) {
+    let overlay = document.getElementById('force-pw-overlay');
+    if (overlay) overlay.remove();
+    
+    overlay = document.createElement('div');
+    overlay.id = 'force-pw-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(27,58,92,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:Inter,-apple-system,sans-serif;';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.3);width:100%;max-width:420px;overflow:hidden;">
+        <div style="padding:24px 28px;border-bottom:2px solid #E8792B;text-align:center;">
+          <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#FFF7ED,#FFEDD5);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:24px;">🔒</div>
+          <h2 style="font-size:18px;font-weight:700;color:#1B3A5C;margin:0;">Change Your Password</h2>
+          <p style="font-size:13px;color:#6b7280;margin:8px 0 0;">For security, you must set a new password on first login.</p>
+        </div>
+        <div style="padding:24px 28px;">
+          <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">New Password</label>
+            <input id="force-pw-new" type="password" placeholder="Minimum 6 characters" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;outline:none;" />
+          </div>
+          <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Confirm Password</label>
+            <input id="force-pw-confirm" type="password" placeholder="Re-enter your new password" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;outline:none;" />
+          </div>
+          <div id="force-pw-error" style="display:none;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:12px;margin-bottom:12px;"></div>
+          <button id="force-pw-submit" style="width:100%;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,#E8792B,#d06a1f);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Set New Password</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    const newPw = overlay.querySelector('#force-pw-new');
+    const confirmPw = overlay.querySelector('#force-pw-confirm');
+    const errorEl = overlay.querySelector('#force-pw-error');
+    const submitBtn = overlay.querySelector('#force-pw-submit');
+    
+    // Use the token we captured, or try from hidden element
+    const authToken = token || document.getElementById('__app_token')?.value || '';
+    
+    submitBtn.addEventListener('click', async () => {
+      const pw = newPw.value;
+      const cpw = confirmPw.value;
+      errorEl.style.display = 'none';
+      
+      if (!pw || pw.length < 6) { errorEl.textContent = 'Password must be at least 6 characters'; errorEl.style.display = 'block'; return; }
+      if (pw !== cpw) { errorEl.textContent = 'Passwords do not match'; errorEl.style.display = 'block'; return; }
+      
+      submitBtn.disabled = true; submitBtn.textContent = 'Changing...';
+      try {
+        const resp = await fetch('/api/auth/force-change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+          body: JSON.stringify({ newPassword: pw })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        overlay.remove();
+        pwModalShown = false;
+      } catch (err) {
+        errorEl.textContent = err.message; errorEl.style.display = 'block';
+        submitBtn.disabled = false; submitBtn.textContent = 'Set New Password';
+      }
+    });
+    
+    newPw.focus();
+  }
+})();
+</script>
+
+
+<script>
+// ===== ORGANOGRAM UI =====
+(function() {
+  let orgPanel = null;
+  let orgData = { tree: [], flat: [] };
+  let allUsers = [];
+
+  function getToken() { return document.getElementById('__app_token')?.value || ''; }
+  function getUserRole() {
+    const token = getToken();
+    if (!token) return null;
+    try { return JSON.parse(atob(token.split('.')[1])).role; } catch { return null; }
+  }
+
+  // ===== INJECT ORGANOGRAM NAV BUTTON =====
+  function injectOrgButton() {
+    if (document.getElementById('org-nav-btn')) return;
+    const tokenEl = document.getElementById('__app_token');
+    if (!tokenEl || !tokenEl.value) return;
+    
+    // Find nav tabs or header
+    const header = document.querySelector('.bg-white.border-b');
+    if (!header) return;
+    
+    const approvalsBtn = document.getElementById('approvals-btn');
+    const targetParent = approvalsBtn ? approvalsBtn.parentNode : header;
+    
+    const btn = document.createElement('button');
+    btn.id = 'org-nav-btn';
+    btn.title = 'View Organogram';
+    btn.style.cssText = 'padding:8px 14px;border-radius:10px;border:1px solid #1B3A5C;background:linear-gradient(135deg,#EFF6FF,#fff);color:#1B3A5C;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap;box-shadow:0 1px 3px rgba(27,58,92,0.15);';
+    btn.innerHTML = '🏛 Organogram';
+    btn.addEventListener('click', () => toggleOrgPanel(true));
+    
+    if (approvalsBtn) {
+      targetParent.insertBefore(btn, approvalsBtn);
+    } else {
+      const rightSection = header.querySelector('.flex.items-center.space-x-3') || header.querySelector('.flex.items-center.gap-3');
+      if (rightSection) rightSection.insertBefore(btn, rightSection.firstChild);
+      else { btn.style.position = 'absolute'; btn.style.right = '300px'; btn.style.top = '50%'; btn.style.transform = 'translateY(-50%)'; header.style.position = 'relative'; header.appendChild(btn); }
+    }
+  }
+
+  function toggleOrgPanel(show) {
+    if (show) {
+      createOrgPanel();
+      orgPanel.style.display = 'block';
+      document.getElementById('org-backdrop').style.display = 'block';
+      loadOrganogram();
+    } else {
+      if (orgPanel) orgPanel.style.display = 'none';
+      const bd = document.getElementById('org-backdrop');
+      if (bd) bd.style.display = 'none';
+    }
+  }
+
+  function createOrgPanel() {
+    if (orgPanel) return;
+    
+    // Backdrop
+    const bd = document.createElement('div');
+    bd.id = 'org-backdrop';
+    bd.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:9995;';
+    bd.addEventListener('click', () => toggleOrgPanel(false));
+    document.body.appendChild(bd);
+    
+    const isAdmin = getUserRole() === 'admin';
+    
+    orgPanel = document.createElement('div');
+    orgPanel.id = 'org-panel';
+    orgPanel.style.cssText = 'display:none;position:fixed;top:0;left:50%;transform:translateX(-50%);width:900px;max-width:95vw;height:100vh;background:#f9fafb;box-shadow:0 0 40px rgba(0,0,0,0.2);z-index:9996;font-family:Inter,-apple-system,sans-serif;overflow:hidden;';
+    orgPanel.innerHTML = `
+      <div style="height:100%;display:flex;flex-direction:column;">
+        <div style="padding:16px 24px;border-bottom:2px solid #1B3A5C;background:linear-gradient(135deg,#1B3A5C 0%,#2a4f73 100%);display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <h2 style="font-size:17px;font-weight:700;color:#fff;margin:0;">🏛 MUST Organogram</h2>
+            <p style="font-size:12px;color:rgba(255,255,255,0.7);margin:4px 0 0;">Organizational Structure</p>
+          </div>
+          <div style="display:flex;gap:8px;">
+            ${isAdmin ? '<button id="org-add-btn" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.15);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">+ Add Position</button>' : ''}
+            <button id="org-close-btn" style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#fff;">&times;</button>
+          </div>
+        </div>
+        <div id="org-content" style="flex:1;overflow-y:auto;padding:24px;">
+          <div style="text-align:center;padding:40px;color:#9ca3af;">Loading organogram...</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(orgPanel);
+    
+    orgPanel.querySelector('#org-close-btn').addEventListener('click', () => toggleOrgPanel(false));
+    if (isAdmin) {
+      orgPanel.querySelector('#org-add-btn').addEventListener('click', () => showPositionForm(null));
+    }
+  }
+
+  async function loadOrganogram() {
+    const token = getToken();
+    try {
+      const [orgResp, usersResp] = await Promise.all([
+        fetch('/api/organogram', { headers: { 'Authorization': 'Bearer ' + token } }),
+        fetch('/api/auth/users')
+      ]);
+      const orgJson = await orgResp.json();
+      const usersJson = await usersResp.json();
+      orgData.tree = orgJson.organogram || [];
+      orgData.flat = orgJson.flat || [];
+      allUsers = usersJson.users || [];
+      renderOrgChart();
+    } catch {
+      document.getElementById('org-content').innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;">Failed to load organogram</div>';
+    }
+  }
+
+  function renderOrgChart() {
+    const container = document.getElementById('org-content');
+    if (orgData.tree.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:#9ca3af;">No positions defined yet.</div>';
+      return;
+    }
+    const isAdmin = getUserRole() === 'admin';
+    container.innerHTML = '<div id="org-tree" style="display:flex;flex-direction:column;align-items:center;gap:0;"></div>';
+    const treeEl = container.querySelector('#org-tree');
+    orgData.tree.forEach(node => treeEl.appendChild(renderNode(node, 0, isAdmin)));
+  }
+
+  function renderNode(node, depth, isAdmin) {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;width:100%;';
+    
+    // Connector line from parent
+    if (depth > 0) {
+      const line = document.createElement('div');
+      line.style.cssText = 'width:2px;height:16px;background:#d1d5db;';
+      wrapper.appendChild(line);
+    }
+    
+    // Node card
+    const typeColors = {
+      leadership: { bg: 'linear-gradient(135deg,#1B3A5C,#2a4f73)', color: '#fff', border: '#1B3A5C' },
+      academic: { bg: 'linear-gradient(135deg,#059669,#047857)', color: '#fff', border: '#059669' },
+      office: { bg: 'linear-gradient(135deg,#E8792B,#d06a1f)', color: '#fff', border: '#E8792B' }
+    };
+    const tc = typeColors[node.position_type] || typeColors.office;
+    
+    const card = document.createElement('div');
+    card.style.cssText = `background:${tc.bg};color:${tc.color};border-radius:10px;padding:10px 18px;min-width:180px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.12);cursor:${isAdmin ? 'pointer' : 'default'};position:relative;`;
+    
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:13px;font-weight:700;';
+    title.textContent = node.title;
+    card.appendChild(title);
+    
+    if (node.assigned_user_name) {
+      const user = document.createElement('div');
+      user.style.cssText = 'font-size:11px;opacity:0.85;margin-top:2px;';
+      user.textContent = node.assigned_user_name;
+      card.appendChild(user);
+    } else {
+      const vacant = document.createElement('div');
+      vacant.style.cssText = 'font-size:10px;opacity:0.6;margin-top:2px;font-style:italic;';
+      vacant.textContent = 'Vacant';
+      card.appendChild(vacant);
+    }
+    
+    if (isAdmin) {
+      card.addEventListener('click', (e) => { e.stopPropagation(); showPositionForm(node); });
+    }
+    
+    wrapper.appendChild(card);
+    
+    // Children
+    if (node.children && node.children.length > 0) {
+      // Connector line to children
+      const lineDown = document.createElement('div');
+      lineDown.style.cssText = 'width:2px;height:16px;background:#d1d5db;';
+      wrapper.appendChild(lineDown);
+      
+      // Horizontal connector bar
+      if (node.children.length > 1) {
+        const hBar = document.createElement('div');
+        hBar.style.cssText = 'height:2px;background:#d1d5db;width:80%;max-width:600px;';
+        wrapper.appendChild(hBar);
+      }
+      
+      // Children container
+      const childrenRow = document.createElement('div');
+      childrenRow.style.cssText = 'display:flex;justify-content:center;gap:8px;flex-wrap:wrap;width:100%;';
+      node.children.forEach(child => {
+        const childWrapper = document.createElement('div');
+        childWrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:0 1 auto;min-width:140px;';
+        childWrapper.appendChild(renderNode(child, depth + 1, isAdmin));
+        childrenRow.appendChild(childWrapper);
+      });
+      wrapper.appendChild(childrenRow);
+    }
+    
+    return wrapper;
+  }
+
+  // ===== ADMIN: Position Form =====
+  function showPositionForm(existingNode) {
+    let formOverlay = document.getElementById('org-form-overlay');
+    if (formOverlay) formOverlay.remove();
+    
+    const isEdit = !!existingNode;
+    
+    formOverlay = document.createElement('div');
+    formOverlay.id = 'org-form-overlay';
+    formOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;font-family:Inter,-apple-system,sans-serif;';
+    
+    const parentOptions = orgData.flat
+      .filter(p => !existingNode || p.id !== existingNode.id)
+      .map(p => `<option value="${p.id}" ${existingNode && existingNode.parent_id === p.id ? 'selected' : ''}>${p.title}${p.assigned_user_name ? ' (' + p.assigned_user_name + ')' : ''}</option>`)
+      .join('');
+    
+    const userOptions = allUsers
+      .map(u => `<option value="${u.username}" ${existingNode && existingNode.assigned_username === u.username ? 'selected' : ''}>${u.display_name} (${u.role})</option>`)
+      .join('');
+    
+    formOverlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.2);width:100%;max-width:480px;overflow:hidden;">
+        <div style="padding:16px 24px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="font-size:16px;font-weight:600;color:#1B3A5C;margin:0;">${isEdit ? 'Edit' : 'Add'} Position</h3>
+          <div style="display:flex;gap:6px;">
+            ${isEdit ? '<button id="org-delete-btn" style="padding:6px 12px;border-radius:6px;border:1px solid #dc2626;background:#fff;color:#dc2626;font-size:12px;cursor:pointer;font-family:inherit;">Delete</button>' : ''}
+            <button id="org-form-close" style="width:28px;height:28px;border-radius:6px;border:none;background:#f3f4f6;cursor:pointer;font-size:14px;color:#6b7280;">&times;</button>
+          </div>
+        </div>
+        <div style="padding:20px 24px;">
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Position Title *</label>
+            <input id="org-f-title" type="text" value="${isEdit ? existingNode.title : ''}" placeholder="e.g. Director Finance" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;" />
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Type</label>
+            <select id="org-f-type" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+              <option value="leadership" ${isEdit && existingNode.position_type === 'leadership' ? 'selected' : ''}>Leadership</option>
+              <option value="academic" ${isEdit && existingNode.position_type === 'academic' ? 'selected' : ''}>Academic</option>
+              <option value="office" ${!isEdit || existingNode.position_type === 'office' ? 'selected' : ''}>Office / Admin</option>
+            </select>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Reports To</label>
+            <select id="org-f-parent" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+              <option value="">— Top Level (no parent) —</option>
+              ${parentOptions}
+            </select>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Assigned User</label>
+            <select id="org-f-user" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
+              <option value="">— Vacant —</option>
+              ${userOptions}
+            </select>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Sort Order</label>
+            <input id="org-f-sort" type="number" value="${isEdit ? existingNode.sort_order : 0}" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;" />
+          </div>
+          <div id="org-f-error" style="display:none;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:12px;margin-bottom:12px;"></div>
+          <button id="org-f-submit" style="width:100%;padding:10px;border:none;border-radius:8px;background:#1B3A5C;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">${isEdit ? 'Update Position' : 'Add Position'}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(formOverlay);
+    
+    formOverlay.querySelector('#org-form-close').addEventListener('click', () => formOverlay.remove());
+    formOverlay.addEventListener('click', (e) => { if (e.target === formOverlay) formOverlay.remove(); });
+    
+    // Submit
+    formOverlay.querySelector('#org-f-submit').addEventListener('click', async () => {
+      const title = formOverlay.querySelector('#org-f-title').value.trim();
+      const posType = formOverlay.querySelector('#org-f-type').value;
+      const parentId = formOverlay.querySelector('#org-f-parent').value || null;
+      const username = formOverlay.querySelector('#org-f-user').value;
+      const sortOrder = parseInt(formOverlay.querySelector('#org-f-sort').value) || 0;
+      const errorEl = formOverlay.querySelector('#org-f-error');
+      
+      if (!title) { errorEl.textContent = 'Title is required'; errorEl.style.display = 'block'; return; }
+      
+      // Resolve username to user ID
+      let userId = null;
+      if (username) {
+        const u = allUsers.find(u => u.username === username);
+        // We need the user ID — fetch from the flat list or use a lookup
+        // The organogram API uses user IDs, so we need to find it
+        const existingPos = orgData.flat.find(p => p.assigned_username === username);
+        if (existingPos) userId = existingPos.user_id;
+        // Fallback: make a call to get users
+        if (!userId) {
+          try {
+            const resp = await fetch('/api/users', { headers: { 'Authorization': 'Bearer ' + getToken() } });
+            const data = await resp.json();
+            const found = (data.users || []).find(u => u.username === username);
+            if (found) userId = found.id;
+          } catch {}
+        }
+      }
+      
+      const token = getToken();
+      const body = { title, positionType: posType, parentId: parentId ? parseInt(parentId) : null, userId, sortOrder };
+      
+      try {
+        const url = isEdit ? '/api/organogram/' + existingNode.id : '/api/organogram';
+        const method = isEdit ? 'PUT' : 'POST';
+        const resp = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        formOverlay.remove();
+        loadOrganogram();
+      } catch (err) {
+        errorEl.textContent = err.message; errorEl.style.display = 'block';
+      }
+    });
+    
+    // Delete handler
+    if (isEdit) {
+      formOverlay.querySelector('#org-delete-btn').addEventListener('click', async () => {
+        if (!confirm('Delete "' + existingNode.title + '"? Children will be reassigned to its parent.')) return;
+        try {
+          const resp = await fetch('/api/organogram/' + existingNode.id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + getToken() } });
+          if (!resp.ok) { const d = await resp.json(); throw new Error(d.error); }
+          formOverlay.remove();
+          loadOrganogram();
+        } catch (err) { alert('Delete failed: ' + err.message); }
+      });
+    }
+  }
+
+  // Observer to inject organogram button
+  const observer = new MutationObserver(() => {
+    const tokenEl = document.getElementById('__app_token');
+    if (tokenEl && tokenEl.value) injectOrgButton();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 })();
 </script>
 

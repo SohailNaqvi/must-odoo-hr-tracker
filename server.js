@@ -138,11 +138,36 @@ async function initDb() {
     responded_at    TEXT,
     response_note   TEXT    DEFAULT ''
   )`);
+
+  // Migration: ensure org_positions table exists
+  db.exec(`CREATE TABLE IF NOT EXISTS org_positions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    position_type TEXT NOT NULL DEFAULT 'office',
+    parent_id INTEGER REFERENCES org_positions(id) ON DELETE SET NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  `);
+
+  // Migration: add must_change_password column if it doesn't exist
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 1");
+  } catch(e) { /* column already exists */ }
+  // Set admin to not require password change
+  try {
+    db.run("UPDATE users SET must_change_password = 0 WHERE username = 'admin'");
+  } catch(e) {}
+
   saveDb();
 
   // Seed if empty
   const cnt = getP("SELECT COUNT(*) as cnt FROM users");
-  if (!cnt || cnt.cnt === 0) seedDefaults();
+  if (!cnt || cnt.cnt === 0) {
+    seedDefaults();
+    seedOrgStructure();
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -201,6 +226,41 @@ function seedDefaults() {
   console.log("✅ Seed complete — 5 users, 11 phases, Week-1 report");
 }
 
+function seedOrgStructure() {
+  console.log("⚙️  Seeding default organogram...");
+  // Top level
+  const { lastInsertRowid: chancellorId } = runP("INSERT INTO org_positions (title, position_type, parent_id, sort_order) VALUES (?, ?, ?, ?)", ["Chancellor", "leadership", null, 0]);
+  
+  // VP Level
+  const { lastInsertRowid: vpAcademicId } = runP("INSERT INTO org_positions (title, position_type, parent_id, sort_order) VALUES (?, ?, ?, ?)", ["VP Academic", "leadership", chancellorId, 1]);
+  const { lastInsertRowid: vpOpsId } = runP("INSERT INTO org_positions (title, position_type, parent_id, sort_order) VALUES (?, ?, ?, ?)", ["VP Operations", "leadership", chancellorId, 2]);
+  
+  // Under VP Academic — Dean
+  const { lastInsertRowid: deanId } = runP("INSERT INTO org_positions (title, position_type, parent_id, sort_order) VALUES (?, ?, ?, ?)", ["Dean", "academic", vpAcademicId, 0]);
+  
+  // Under Dean — Academic Departments (mirroring DSS)
+  const depts = ["Computer Science", "Business", "Nursing", "Pharmacy", "DPT", "HND", "MLT", "MIT", "Optometry", "Veterinary Science", "Law", "Arts & Social Sciences"];
+  depts.forEach((d, i) => {
+    runP("INSERT INTO org_positions (title, position_type, parent_id, sort_order) VALUES (?, ?, ?, ?)", ["HoD " + d, "academic", deanId, i]);
+  });
+  
+  // Under VP Ops — Administrative Offices
+  const offices = [
+    ["Registrar", 0], ["Director HR", 1], ["Director Finance", 2], 
+    ["Director IT", 3], ["Director Estates", 4], ["Director Student Affairs", 5],
+    ["Director QEC", 6], ["Controller Examinations", 7], ["Librarian", 8]
+  ];
+  offices.forEach(([title, order]) => {
+    const nasra = title === "Director HR" ? getP("SELECT id FROM users WHERE username = 'nasra.naqvi'") : null;
+    const reg = title === "Registrar" ? getP("SELECT id FROM users WHERE username = 'registrar'") : null;
+    const vp = title === "Director IT" ? getP("SELECT id FROM users WHERE username = 'vpops'") : null;
+    const userId = nasra ? nasra.id : (reg ? reg.id : (vp ? vp.id : null));
+    runP("INSERT INTO org_positions (title, position_type, parent_id, user_id, sort_order) VALUES (?, ?, ?, ?, ?)", [title, "office", vpOpsId, userId, order]);
+  });
+  
+  console.log("✅ Organogram seeded");
+}
+
 /* ══════════════════════════════════════════════════════════
    AUTH MIDDLEWARE
    ══════════════════════════════════════════════════════════ */
@@ -243,7 +303,7 @@ app.post("/api/auth/login", (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: "Invalid credentials" });
   runP("UPDATE users SET last_login = datetime('now') WHERE id = ?", [user.id]);
   const token = jwt.sign({ id: user.id, username: user.username, role: user.role, displayName: user.display_name }, JWT_SECRET, { expiresIn: "24h" });
-  res.json({ token, user: { id: user.id, username: user.username, displayName: user.display_name, role: user.role, email: user.email } });
+  res.json({ token, user: { id: user.id, username: user.username, displayName: user.display_name, role: user.role, email: user.email, mustChangePassword: user.must_change_password === 1 } });
 });
 
 app.post("/api/auth/change-password", authMiddleware, (req, res) => {
@@ -254,6 +314,15 @@ app.post("/api/auth/change-password", authMiddleware, (req, res) => {
   runP("UPDATE users SET password_hash = ? WHERE id = ?", [bcrypt.hashSync(newPassword, 10), req.user.id]);
   logAudit(req.user.id, "change_password", "user", req.user.id);
   res.json({ message: "Password changed" });
+});
+
+// Force change password on first login
+app.post("/api/auth/force-change-password", authMiddleware, (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
+  runP("UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?", [bcrypt.hashSync(newPassword, 10), req.user.id]);
+  logAudit(req.user.id, "force_change_password", "user", req.user.id);
+  res.json({ message: "Password changed successfully" });
 });
 
 app.get("/api/auth/me", authMiddleware, (req, res) => {
@@ -282,7 +351,7 @@ app.post("/api/users", authMiddleware, requireRole("admin"), (req, res) => {
 app.put("/api/users/:id/reset-password", authMiddleware, requireRole("admin"), (req, res) => {
   const { newPassword } = req.body;
   if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: "Min 6 chars" });
-  runP("UPDATE users SET password_hash = ? WHERE id = ?", [bcrypt.hashSync(newPassword, 10), parseInt(req.params.id)]);
+  runP("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?", [bcrypt.hashSync(newPassword, 10), parseInt(req.params.id)]);
   logAudit(req.user.id, "reset_password", "user", parseInt(req.params.id));
   res.json({ message: "Password reset" });
 });
@@ -469,6 +538,80 @@ app.get("/api/tasks/:id/forwards", authMiddleware, (req, res) => {
     ORDER BY fi.forwarded_at DESC
   `, [taskId]);
   res.json({ forwardedItems: items });
+});
+
+/* ══════════════════════════════════════════════════════════
+   ORGANOGRAM
+   ══════════════════════════════════════════════════════════ */
+
+// Get full organogram tree
+app.get("/api/organogram", authMiddleware, (req, res) => {
+  const positions = allP(`
+    SELECT op.*, u.display_name as assigned_user_name, u.username as assigned_username, u.role as assigned_user_role
+    FROM org_positions op
+    LEFT JOIN users u ON op.user_id = u.id
+    ORDER BY op.sort_order
+  `);
+  
+  // Build tree structure
+  function buildTree(parentId) {
+    return positions
+      .filter(p => p.parent_id === parentId)
+      .map(p => ({
+        ...p,
+        children: buildTree(p.id)
+      }));
+  }
+  
+  const tree = buildTree(null);
+  res.json({ organogram: tree, flat: positions });
+});
+
+// Add position
+app.post("/api/organogram", authMiddleware, requireRole("admin"), (req, res) => {
+  const { title, positionType, parentId, userId, sortOrder } = req.body;
+  if (!title) return res.status(400).json({ error: "Title required" });
+  const { lastInsertRowid } = runP(
+    "INSERT INTO org_positions (title, position_type, parent_id, user_id, sort_order) VALUES (?, ?, ?, ?, ?)",
+    [title, positionType || "office", parentId || null, userId || null, sortOrder || 0]
+  );
+  
+  // If a user is assigned, ensure they have system access
+  logAudit(req.user.id, "create_position", "org_position", lastInsertRowid, null, title);
+  res.json({ id: lastInsertRowid, message: "Position created" });
+});
+
+// Update position
+app.put("/api/organogram/:id", authMiddleware, requireRole("admin"), (req, res) => {
+  const posId = parseInt(req.params.id);
+  const pos = getP("SELECT * FROM org_positions WHERE id = ?", [posId]);
+  if (!pos) return res.status(404).json({ error: "Position not found" });
+  
+  const { title, positionType, parentId, userId, sortOrder } = req.body;
+  const sets = []; const params = [];
+  if (title !== undefined) { sets.push("title = ?"); params.push(title); }
+  if (positionType !== undefined) { sets.push("position_type = ?"); params.push(positionType); }
+  if (parentId !== undefined) { sets.push("parent_id = ?"); params.push(parentId || null); }
+  if (userId !== undefined) { sets.push("user_id = ?"); params.push(userId || null); }
+  if (sortOrder !== undefined) { sets.push("sort_order = ?"); params.push(sortOrder); }
+  if (sets.length === 0) return res.json({ message: "No changes" });
+  sets.push("updated_at = datetime('now')");
+  params.push(posId);
+  runP(`UPDATE org_positions SET ${sets.join(", ")} WHERE id = ?`, params);
+  logAudit(req.user.id, "update_position", "org_position", posId, pos.title, title || pos.title);
+  res.json({ message: "Position updated" });
+});
+
+// Delete position
+app.delete("/api/organogram/:id", authMiddleware, requireRole("admin"), (req, res) => {
+  const posId = parseInt(req.params.id);
+  const pos = getP("SELECT * FROM org_positions WHERE id = ?", [posId]);
+  if (!pos) return res.status(404).json({ error: "Position not found" });
+  // Reassign children to this position's parent
+  runP("UPDATE org_positions SET parent_id = ? WHERE parent_id = ?", [pos.parent_id, posId]);
+  runP("DELETE FROM org_positions WHERE id = ?", [posId]);
+  logAudit(req.user.id, "delete_position", "org_position", posId, pos.title);
+  res.json({ message: "Position deleted, children reassigned to parent" });
 });
 
 /* ══════════════════════════════════════════════════════════
