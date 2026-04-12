@@ -207,45 +207,222 @@ Error generating stack: `+o.message+`
  */const $c=V("X",[["path",{d:"M18 6 6 18",key:"1bl5f8"}],["path",{d:"m6 6 12 12",key:"d8bk6v"}]]),bp=window.location.origin;async function Ae(e,t={},n=null){const r={"Content-Type":"application/json",...t.headers||{}};n&&(r.Authorization=`Bearer ${n}`);const l=await fetch(`${bp}${e}`,{...t,headers:r}),o=await l.json();if(!l.ok)throw new Error(o.error||"Request failed");return o}const ho={policy:{bg:"#fffbeb",color:"#d97706",border:"#fde68a",label:"Policy"},document:{bg:"#eff6ff",color:"#2563eb",border:"#bfdbfe",label:"Document"},odoo:{bg:"#ecfdf5",color:"#059669",border:"#a7f3d0",label:"Odoo Config"},action:{bg:"#fef2f2",color:"#dc2626",border:"#fecaca",label:"Immediate Action"}},go={completed:{bg:"#ecfdf5",color:"#059669",border:"#a7f3d0",label:"Completed",icon:si},in_progress:{bg:"#eff6ff",color:"#2563eb",border:"#bfdbfe",label:"In Progress",icon:Mp},pending:{bg:"#f9fafb",color:"#6b7280",border:"#e5e7eb",label:"Pending",icon:Ip},blocked:{bg:"#fef2f2",color:"#dc2626",border:"#fecaca",label:"Blocked",icon:oi}},yo=["#ef4444","#f59e0b","#f59e0b","#3b82f6","#3b82f6","#10b981","#10b981","#3b82f6","#6b7280","#6b7280","#6b7280"],Su={admin:{label:"System Administrator",icon:Vc,color:"#6366f1",desc:"Create and manage the implementation roadmap"},directorHR:{label:"Director HR",icon:Fp,color:"#2563eb",desc:"Update task progress and submit progress reports"},registrar:{label:"Registrar",icon:Ap,color:"#059669",desc:"Read-only oversight — policy approvals tracking"},vpOps:{label:"VP Operations",icon:Wp,color:"#d97706",desc:"Read-only oversight — review HR milestones"}};function Kp({notification:e}){return e?i.jsxs("div",{className:`fixed top-4 right-4 z-50 px-5 py-3 rounded-xl shadow-2xl text-sm font-medium flex items-center gap-2 ${e.type==="error"?"bg-red-600 text-white":"bg-green-600 text-white"}`,children:[e.type==="error"?i.jsx(oi,{size:16}):i.jsx(si,{size:16}),e.msg]}):null}function Yp({onLogin:e,error:t,loading:n}){const[r,l]=O.useState(""),[o,s]=O.useState(""),u=a=>{a.preventDefault(),e(r,o)};return i.jsx("div",{className:"min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-6",children:i.jsxs("div",{className:"w-full max-w-md",children:[i.jsxs("div",{className:"text-center mb-8",children:[i.jsx("div",{className:"inline-flex items-center gap-3 mb-4",children:i.jsx("div",{className:"w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg",children:i.jsx(Ac,{size:24,className:"text-white"})})}),i.jsx("h1",{className:"text-2xl font-bold text-gray-900",children:"MUST — Odoo HR Implementation"}),i.jsx("p",{className:"text-sm text-gray-500 mt-1",children:"Task Management & Progress Tracking System"})]}),i.jsxs("form",{onSubmit:u,className:"bg-white rounded-2xl shadow-xl border border-gray-200 p-8 space-y-5",children:[i.jsxs("div",{children:[i.jsx("label",{className:"text-sm font-medium text-gray-700 block mb-1.5",children:"Username"}),i.jsxs("div",{className:"relative",children:[i.jsx(Qp,{size:16,className:"absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"}),i.jsx("input",{type:"text",value:r,onChange:a=>l(a.target.value),placeholder:"e.g. nasra.naqvi",autoFocus:!0,autoComplete:"username",className:"w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-300"})]})]}),i.jsxs("div",{children:[i.jsx("label",{className:"text-sm font-medium text-gray-700 block mb-1.5",children:"Password"}),i.jsxs("div",{className:"relative",children:[i.jsx(Hp,{size:16,className:"absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"}),i.jsx("input",{type:"password",value:o,onChange:a=>s(a.target.value),placeholder:"Enter your password",autoComplete:"current-password",className:"w-full border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-300"})]})]}),t&&i.jsxs("div",{className:"p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-center gap-2",children:[i.jsx(oi,{size:15})," ",t]}),i.jsxs("button",{type:"submit",disabled:n||!r||!o,className:"w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition",children:[n?i.jsx(Ic,{size:16,className:"animate-spin"}):i.jsx(Op,{size:16}),n?"Signing in...":"Sign In"]}),i.jsxs("div",{className:"text-xs text-gray-400 text-center pt-2 border-t border-gray-100",children:[i.jsx("p",{className:"font-medium text-gray-500 mb-1",children:"Available accounts:"}),i.jsx("p",{children:"admin · nasra.naqvi · registrar · vpops"}),i.jsxs("p",{className:"mt-1",children:["Default password: ",i.jsx("span",{className:"font-mono bg-gray-100 px-1.5 py-0.5 rounded",children:"must2026"})]})]})]})]})})}function Xp({token:e,onClose:t,onNotify:n}){const[r,l]=O.useState(""),[o,s]=O.useState(""),[u,a]=O.useState(""),[f,g]=O.useState(""),[y,h]=O.useState(!1),S=async()=>{if(o!==u){g("New passwords do not match");return}if(o.length<6){g("Password must be at least 6 characters");return}h(!0),g("");try{await Ae("/api/auth/change-password",{method:"POST",body:JSON.stringify({currentPassword:r,newPassword:o})},e),n("Password changed successfully"),t()}catch(m){g(m.message)}finally{h(!1)}};return i.jsx("div",{className:"fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4",children:i.jsxs("div",{className:"bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4",children:[i.jsxs("div",{className:"flex items-center justify-between",children:[i.jsxs("h3",{className:"font-bold text-gray-900 flex items-center gap-2",children:[i.jsx(Fc,{size:18})," Change Password"]}),i.jsx("button",{onClick:t,className:"p-1.5 hover:bg-gray-100 rounded-lg",children:i.jsx($c,{size:16})})]}),i.jsxs("div",{className:"space-y-3",children:[i.jsxs("div",{children:[i.jsx("label",{className:"text-xs font-medium text-gray-600 block mb-1",children:"Current Password"}),i.jsx("input",{type:"password",value:r,onChange:m=>l(m.target.value),className:"w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"})]}),i.jsxs("div",{children:[i.jsx("label",{className:"text-xs font-medium text-gray-600 block mb-1",children:"New Password"}),i.jsx("input",{type:"password",value:o,onChange:m=>s(m.target.value),className:"w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"})]}),i.jsxs("div",{children:[i.jsx("label",{className:"text-xs font-medium text-gray-600 block mb-1",children:"Confirm New Password"}),i.jsx("input",{type:"password",value:u,onChange:m=>a(m.target.value),className:"w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"})]})]}),f&&i.jsx("div",{className:"text-sm text-red-600 bg-red-50 p-2 rounded-lg",children:f}),i.jsxs("div",{className:"flex justify-end gap-2 pt-2",children:[i.jsx("button",{onClick:t,className:"px-4 py-2 text-sm border rounded-lg hover:bg-gray-50",children:"Cancel"}),i.jsx("button",{onClick:S,disabled:y,className:"px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50",children:y?"Saving...":"Change Password"})]})]})})}function Gp({phase:e,token:t,onSave:n,onCancel:r}){const[l,o]=O.useState(()=>JSON.parse(JSON.stringify(e))),[s,u]=O.useState(""),[a,f]=O.useState("document"),[g,y]=O.useState(!1),h=()=>{s.trim()&&(o(m=>({...m,tasks:[...m.tasks,{label:s.trim(),category:a,status:"pending"}]})),u(""))},S=async()=>{y(!0);try{await Ae(`/api/phases/${e.id}`,{method:"PUT",body:JSON.stringify({title:l.title,subtitle:l.subtitle,timeline:l.timeline,note:l.note,tasks:l.tasks.map(m=>({label:m.label,category:m.category,status:m.status,completed_date:m.completed_date,completed_by:m.completed_by,note:m.note,deliverable:m.deliverable})),odooSteps:l.odooSteps,prerequisites:l.prerequisites,authorities:l.authorities})},t),n()}catch(m){alert(m.message)}finally{y(!1)}};return i.jsx("div",{className:"fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4",children:i.jsxs("div",{className:"bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto",children:[i.jsxs("div",{className:"sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between rounded-t-2xl z-10",children:[i.jsxs("h3",{className:"font-bold text-gray-900",children:["Edit Phase ",e.phase]}),i.jsx("button",{onClick:r,className:"p-2 hover:bg-gray-100 rounded-lg",children:i.jsx($c,{size:18})})]}),i.jsxs("div",{className:"p-6 space-y-5",children:[i.jsxs("div",{className:"grid grid-cols-2 gap-4",children:[i.jsxs("div",{children:[i.jsx("label",{className:"text-xs font-medium text-gray-600 block mb-1",children:"Title"}),i.jsx("input",{value:l.title,onChange:m=>o(k=>({...k,title:m.target.value})),className:"w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"})]}),i.jsxs("div",{children:[i.jsx("label",{className:"text-xs font-medium text-gray-600 block mb-1",children:"Timeline"}),i.jsx("input",{value:l.timeline,onChange:m=>o(k=>({...k,timeline:m.target.value})),className:"w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"})]})]}),i.jsxs("div",{children:[i.jsx("label",{className:"text-xs font-medium text-gray-600 block mb-1",children:"Subtitle"}),i.jsx("input",{value:l.subtitle,onChange:m=>o(k=>({...k,subtitle:m.target.value})),className:"w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"})]}),i.jsxs("div",{children:[i.jsxs("label",{className:"text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block",children:["Tasks (",l.tasks.length,")"]}),i.jsx("div",{className:"space-y-2 mb-3",children:l.tasks.map((m,k)=>i.jsxs("div",{className:"flex items-center gap-2 p-2 rounded-lg border border-gray-100 bg-gray-50",children:[i.jsxs("select",{value:m.category,onChange:L=>{const d=[...l.tasks];d[k]={...d[k],category:L.target.value},o(c=>({...c,tasks:d}))},className:"text-xs border rounded px-1.5 py-1 w-24",children:[i.jsx("option",{value:"policy",children:"Policy"}),i.jsx("option",{value:"document",children:"Document"}),i.jsx("option",{value:"odoo",children:"Odoo"}),i.jsx("option",{value:"action",children:"Action"})]}),i.jsx("input",{value:m.label,onChange:L=>{const d=[...l.tasks];d[k]={...d[k],label:L.target.value},o(c=>({...c,tasks:d}))},className:"flex-1 border rounded px-2 py-1 text-sm"}),i.jsx("button",{onClick:()=>o(L=>({...L,tasks:L.tasks.filter((d,c)=>c!==k)})),className:"p-1 text-gray-400 hover:text-red-500",children:i.jsx(tr,{size:14})})]},k))}),i.jsxs("div",{className:"flex items-center gap-2 p-2 border-2 border-dashed border-gray-200 rounded-lg",children:[i.jsxs("select",{value:a,onChange:m=>f(m.target.value),className:"text-xs border rounded px-1.5 py-1 w-24",children:[i.jsx("option",{value:"policy",children:"Policy"}),i.jsx("option",{value:"document",children:"Document"}),i.jsx("option",{value:"odoo",children:"Odoo"}),i.jsx("option",{value:"action",children:"Action"})]}),i.jsx("input",{value:s,onChange:m=>u(m.target.value),placeholder:"Add task...",onKeyDown:m=>m.key==="Enter"&&h(),className:"flex-1 border rounded px-2 py-1 text-sm"}),i.jsx("button",{onClick:h,className:"px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700",children:i.jsx(er,{size:12})})]})]}),i.jsxs("div",{children:[i.jsxs("div",{className:"flex items-center justify-between mb-2",children:[i.jsx("label",{className:"text-xs font-semibold text-gray-500 uppercase tracking-wider",children:"Odoo Steps"}),i.jsx("button",{onClick:()=>o(m=>({...m,odooSteps:[...m.odooSteps,""]})),className:"text-xs text-blue-600",children:i.jsx(er,{size:12})})]}),l.odooSteps.map((m,k)=>i.jsxs("div",{className:"flex items-center gap-2 mb-1.5",children:[i.jsx(Dc,{size:14,className:"text-green-500"}),i.jsx("input",{value:m,onChange:L=>{const d=[...l.odooSteps];d[k]=L.target.value,o(c=>({...c,odooSteps:d}))},className:"flex-1 border rounded px-2 py-1 text-sm"}),i.jsx("button",{onClick:()=>o(L=>({...L,odooSteps:L.odooSteps.filter((d,c)=>c!==k)})),className:"p-1 text-gray-400 hover:text-red-500",children:i.jsx(tr,{size:14})})]},k))]}),[{key:"prerequisites",label:"Prerequisites"},{key:"authorities",label:"Approval Authorities"}].map(({key:m,label:k})=>i.jsxs("div",{children:[i.jsxs("div",{className:"flex items-center justify-between mb-2",children:[i.jsx("label",{className:"text-xs font-semibold text-gray-500 uppercase tracking-wider",children:k}),i.jsx("button",{onClick:()=>o(L=>({...L,[m]:[...L[m],""]})),className:"text-xs text-blue-600",children:i.jsx(er,{size:12})})]}),l[m].map((L,d)=>i.jsxs("div",{className:"flex items-center gap-2 mb-1.5",children:[i.jsx("input",{value:L,onChange:c=>{const p=[...l[m]];p[d]=c.target.value,o(x=>({...x,[m]:p}))},className:"flex-1 border rounded px-2 py-1 text-sm"}),i.jsx("button",{onClick:()=>o(c=>({...c,[m]:c[m].filter((p,x)=>x!==d)})),className:"p-1 text-gray-400 hover:text-red-500",children:i.jsx(tr,{size:14})})]},d))]},m)),i.jsxs("div",{children:[i.jsx("label",{className:"text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1",children:"Note"}),i.jsx("textarea",{value:l.note||"",onChange:m=>o(k=>({...k,note:m.target.value})),rows:2,className:"w-full border rounded-lg px-3 py-2 text-sm resize-none"})]})]}),i.jsxs("div",{className:"sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-3 rounded-b-2xl",children:[i.jsx("button",{onClick:r,className:"px-4 py-2 text-sm border rounded-lg hover:bg-gray-50",children:"Cancel"}),i.jsxs("button",{onClick:S,disabled:g,className:"px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2",children:[i.jsx(Uc,{size:15})," ",g?"Saving...":"Save Phase"]})]})]})})}function Zp(){const[e,t]=O.useState(null),[n,r]=O.useState(null),[l,o]=O.useState(""),[s,u]=O.useState(!1),[a,f]=O.useState(!1),[g,y]=O.useState([]),[h,S]=O.useState([]),[m,k]=O.useState(null),[L,d]=O.useState(!1),[c,p]=O.useState("roadmap"),[x,N]=O.useState(0),[E,_]=O.useState(null),[z,$]=O.useState(null),[D,ae]=O.useState(null),[et,Ie]=O.useState(""),[Gt,Ot]=O.useState(""),[ve,be]=O.useState({title:"",summary:"",keyFindings:[""]}),[j,T]=O.useState(!1),[R,b]=O.useState(null),I=(v,P="success")=>{b({msg:v,type:P}),setTimeout(()=>b(null),3e3)},Ke=(n==null?void 0:n.role)==="admin",je=(n==null?void 0:n.role)==="directorHR",Zt=Ke||je,tt=async(v,P)=>{u(!0),o("");try{const M=await Ae("/api/auth/login",{method:"POST",body:JSON.stringify({username:v,password:P})});t(M.token),r(M.user)}catch(M){o(M.message)}finally{u(!1)}},Dt=()=>{t(null),r(null),y([]),S([]),k(null),p("roadmap"),o("")},nt=O.useCallback(async()=>{var v;if(e){d(!0);try{const[P,M,ne]=await Promise.all([Ae("/api/roadmap",{},e),Ae("/api/reports",{},e),Ae("/api/stats",{},e)]);y(P.roadmap||[]),S(M.reports||[]),k(ne),((v=M.reports)==null?void 0:v.length)>0&&!E&&_(M.reports[0].id)}catch(P){P.message==="Invalid token"||P.message==="No token"?Dt():I(P.message,"error")}finally{d(!1)}}},[e]);O.useEffect(()=>{nt()},[nt]);const Hc=async(v,P)=>{try{await Ae(`/api/tasks/${v}`,{method:"PUT",body:JSON.stringify({status:P})},e),I(`Task → ${P.replace("_"," ")}`),nt()}catch(M){I(M.message,"error")}},Bc=async v=>{try{const P={};et.trim()&&(P.note=et.trim()),Gt.trim()&&(P.deliverable=Gt.trim()),await Ae(`/api/tasks/${v}`,{method:"PUT",body:JSON.stringify(P)},e),ae(null),Ie(""),Ot(""),I("Task details saved"),nt()}catch(P){I(P.message,"error")}},Wc=async()=>{if(!ve.title.trim()||!ve.summary.trim()){I("Title and summary required","error");return}try{const v=g.find(P=>P.tasks.some(M=>M.status==="in_progress"))||g[0];await Ae("/api/reports",{method:"POST",body:JSON.stringify({title:ve.title.trim(),summary:ve.summary.trim(),keyFindings:ve.keyFindings.filter(P=>P.trim()),phaseNumber:v==null?void 0:v.phase})},e),be({title:"",summary:"",keyFindings:[""]}),T(!0),setTimeout(()=>T(!1),4e3),I("Progress report submitted"),nt()}catch(v){I(v.message,"error")}},Qc=async()=>{const v=prompt("New phase title:");if(v!=null&&v.trim())try{await Ae("/api/phases",{method:"POST",body:JSON.stringify({title:v.trim()})},e),I("Phase added"),nt()}catch(P){I(P.message,"error")}},bc=async(v,P)=>{if(confirm(`Remove "${P}"? This deletes all its tasks.`))try{await Ae(`/api/phases/${v}`,{method:"DELETE"},e),I("Phase removed"),nt()}catch(M){I(M.message,"error")}},Kc=(m==null?void 0:m.completed)||0,Yc=(m==null?void 0:m.totalTasks)||0,Xc=(m==null?void 0:m.overallProgress)||0,Gc=v=>!v.tasks||v.tasks.length===0?"pending":v.tasks.every(M=>M.status==="completed")?"completed":v.tasks.some(M=>M.status==="blocked")?"blocked":v.tasks.some(M=>M.status==="in_progress"||M.status==="completed")?"in_progress":"pending";if(!e||!n)return i.jsx(Yp,{onLogin:tt,error:l,loading:s});const Jt=Su[n.role]||Su.registrar,Zc=Jt.icon,Jc=[{id:"roadmap",label:"Roadmap",icon:$p},{id:"progress",label:"Progress Reports",icon:ku},...je?[{id:"submit",label:"Submit Report",icon:mo}]:[],...Ke?[{id:"manage",label:"Manage Phases",icon:Vc}]:[],{id:"summary",label:"Dashboard",icon:Dp}];return i.jsxs("div",{className:"min-h-screen bg-gray-50",children:[i.jsx(Kp,{notification:R}),a&&i.jsx(Xp,{token:e,onClose:()=>f(!1),onNotify:I}),z!==null&&i.jsx(Gp,{phase:g[z],token:e,onSave:()=>{$(null),I("Phase updated"),nt()},onCancel:()=>$(null)}),i.jsx("div",{className:"bg-white border-b border-gray-200 shadow-sm",children:i.jsxs("div",{className:"max-w-7xl mx-auto px-6 py-3 flex items-center justify-between",children:[i.jsxs("div",{className:"flex items-center gap-3",children:[i.jsx("div",{className:"w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center",children:i.jsx(Ac,{size:18,className:"text-white"})}),i.jsxs("div",{children:[i.jsx("h1",{className:"text-sm font-bold text-gray-900",children:"MUST — Odoo HR Implementation Tracker"}),i.jsx("p",{className:"text-xs text-gray-400",children:"Standalone Module v1.0 — Database-backed"})]})]}),i.jsxs("div",{className:"flex items-center gap-3",children:[i.jsxs("div",{className:"flex items-center gap-2 px-3 py-1.5 rounded-lg",style:{backgroundColor:Jt.color+"10"},children:[i.jsx(Zc,{size:15,style:{color:Jt.color}}),i.jsx("span",{className:"text-sm font-medium",style:{color:Jt.color},children:n.displayName}),i.jsx("span",{className:"px-1.5 py-0.5 rounded text-xs font-medium",style:{backgroundColor:Jt.color+"15",color:Jt.color},children:Ke?"Admin":je?"Editor":"View Only"})]}),i.jsx("button",{onClick:()=>f(!0),className:"p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition",title:"Change password",children:i.jsx(Fc,{size:16})}),i.jsx("button",{onClick:nt,className:"p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition",title:"Refresh data",children:i.jsx(Ic,{size:16,className:L?"animate-spin":""})}),i.jsxs("button",{onClick:Dt,className:"flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition",children:[i.jsx(Bp,{size:15})," Sign Out"]})]})]})}),i.jsx("div",{className:"bg-white border-b border-gray-100",children:i.jsx("div",{className:"max-w-7xl mx-auto px-6 flex gap-1",children:Jc.map(v=>{const P=v.icon;return i.jsxs("button",{onClick:()=>p(v.id),className:`flex items-center gap-2 px-4 py-3 border-b-2 text-sm font-medium transition ${c===v.id?"border-blue-500 text-blue-700":"border-transparent text-gray-500 hover:text-gray-800"}`,children:[i.jsx(P,{size:15})," ",v.label]},v.id)})})}),i.jsxs("div",{className:"max-w-7xl mx-auto px-6 py-6 space-y-6",children:[m&&i.jsx("div",{className:"grid grid-cols-5 gap-4",children:[{label:"Overall",value:`${m.overallProgress}%`,sub:`${m.totalPhases} phases`,color:"#3b82f6",bar:m.overallProgress},{label:"Completed",value:m.completed,sub:`of ${m.totalTasks}`,color:"#059669"},{label:"In Progress",value:m.inProgress,sub:`${m.totalOdooSteps} Odoo steps`,color:"#d97706"},{label:"Pending",value:m.pending,sub:m.blocked>0?`${m.blocked} blocked`:"on track",color:"#6b7280"},{label:"Reports",value:m.totalReports,sub:"filed",color:"#7c3aed"}].map((v,P)=>i.jsxs("div",{className:"bg-white border border-gray-200 rounded-xl p-4",children:[i.jsx("div",{className:"text-2xl font-bold",style:{color:v.color},children:v.value}),i.jsx("div",{className:"text-xs mt-1",style:{color:v.color+"cc"},children:v.label}),i.jsx("div",{className:"text-xs text-gray-400 mt-0.5",children:v.sub}),v.bar!==void 0&&i.jsx("div",{className:"mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden",children:i.jsx("div",{className:"h-full rounded-full transition-all",style:{width:`${v.bar}%`,backgroundColor:v.color}})})]},P))}),c==="roadmap"&&i.jsxs("div",{className:"space-y-3",children:[i.jsx("div",{className:"flex flex-wrap items-center gap-4 text-xs text-gray-500",children:Object.entries(ho).map(([v,P])=>i.jsxs("span",{className:"flex items-center gap-1.5",children:[i.jsx("span",{className:"w-2.5 h-2.5 rounded-full",style:{backgroundColor:P.color}})," ",P.label]},v))}),g.map((v,P)=>{var ii,ui,ai;const M=x===v.phase,ne=v.tasks.filter(H=>H.status==="completed").length,oe=v.tasks.length,Tn=oe>0?Math.round(ne/oe*100):0,qc=Gc(v),Ln=go[qc],ed=Ln.icon,qt=yo[v.phase]||"#6b7280";return i.jsxs("div",{className:"border rounded-xl overflow-hidden bg-white",style:{borderColor:M?qt+"50":"#e5e7eb"},children:[i.jsxs("button",{onClick:()=>N(M?-1:v.phase),className:"w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition text-left",children:[i.jsx("div",{className:"w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",style:{backgroundColor:qt+"18",color:qt},children:v.phase}),i.jsxs("div",{className:"flex-1 min-w-0",children:[i.jsxs("div",{className:"flex items-center gap-2 flex-wrap",children:[i.jsx("span",{className:"font-semibold text-gray-900 text-sm",children:v.title}),i.jsxs("span",{className:"px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1",style:{backgroundColor:Ln.bg,color:Ln.color,border:`1px solid ${Ln.border}`},children:[i.jsx(ed,{size:11})," ",Ln.label]})]}),i.jsx("p",{className:"text-xs text-gray-500 mt-0.5 truncate",children:v.subtitle})]}),i.jsx("span",{className:"text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full flex-shrink-0",children:v.timeline}),i.jsxs("span",{className:"text-xs font-medium flex-shrink-0",style:{color:qt},children:[ne,"/",oe]}),i.jsx("div",{className:"w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden flex-shrink-0",children:i.jsx("div",{className:"h-full rounded-full",style:{width:`${Tn}%`,backgroundColor:qt}})}),M?i.jsx(wu,{size:16,className:"text-gray-400"}):i.jsx(xu,{size:16,className:"text-gray-400"})]}),M&&i.jsxs("div",{className:"border-t px-5 py-4 space-y-4",style:{borderColor:qt+"25"},children:[Ke&&i.jsx("div",{className:"flex items-center gap-2 pb-2 border-b border-gray-100",children:i.jsxs("button",{onClick:()=>$(P),className:"px-3 py-1.5 text-xs bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 flex items-center gap-1 font-medium",children:[i.jsx(po,{size:13})," Edit Phase Structure"]})}),((ii=v.prerequisites)==null?void 0:ii.length)>0&&i.jsxs("div",{children:[i.jsx("div",{className:"text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2",children:"Prerequisites"}),i.jsx("div",{className:"flex flex-wrap gap-1.5",children:v.prerequisites.map((H,Ye)=>i.jsx("span",{className:"text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200",children:H},Ye))})]}),i.jsxs("div",{children:[i.jsxs("div",{className:"text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2",children:["Tasks (",ne,"/",oe,")"]}),i.jsx("div",{className:"space-y-2",children:v.tasks.map(H=>{const Ye=ho[H.category]||ho.action,rt=go[H.status]||go.pending,td=rt.icon,Al=D===H.id;return i.jsxs("div",{className:"rounded-lg border",style:{borderColor:rt.border,backgroundColor:rt.bg+"30"},children:[i.jsxs("div",{className:"flex items-start gap-3 p-3",children:[i.jsx(td,{size:16,style:{color:rt.color,marginTop:2,flexShrink:0}}),i.jsxs("div",{className:"flex-1 min-w-0",children:[i.jsxs("div",{className:"flex items-center gap-2 flex-wrap",children:[i.jsx("span",{className:"text-sm text-gray-800",children:H.label}),i.jsx("span",{className:"px-2 py-0.5 rounded-full text-xs",style:{backgroundColor:Ye.bg,color:Ye.color,border:`1px solid ${Ye.border}`},children:Ye.label}),i.jsx("span",{className:"px-2 py-0.5 rounded-full text-xs font-medium",style:{backgroundColor:rt.bg,color:rt.color,border:`1px solid ${rt.border}`},children:rt.label})]}),H.completed_date&&i.jsxs("div",{className:"text-xs text-gray-500 mt-1",children:["Completed ",H.completed_date," by ",H.completed_by]}),H.note&&i.jsxs("div",{className:"text-xs text-gray-500 mt-1 italic",children:["Note: ",H.note]}),H.deliverable&&i.jsx("div",{className:"text-xs text-gray-600 mt-1.5 p-2 bg-white rounded border border-gray-100 leading-relaxed",children:H.deliverable})]}),Zt&&i.jsxs("div",{className:"flex items-center gap-1.5 flex-shrink-0",children:[i.jsxs("select",{value:H.status,onChange:Rn=>Hc(H.id,Rn.target.value),className:"text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white cursor-pointer",children:[i.jsx("option",{value:"pending",children:"Pending"}),i.jsx("option",{value:"in_progress",children:"In Progress"}),i.jsx("option",{value:"completed",children:"Completed"}),i.jsx("option",{value:"blocked",children:"Blocked"})]}),i.jsx("button",{onClick:()=>{Al?(ae(null),Ie(""),Ot("")):(ae(H.id),Ie(H.note||""),Ot(H.deliverable||""))},className:"p-1.5 rounded-md hover:bg-white border border-transparent hover:border-gray-200",children:i.jsx(po,{size:14,className:Al?"text-blue-600":"text-gray-400"})})]})]}),Zt&&Al&&i.jsxs("div",{className:"border-t px-4 py-3 space-y-2 bg-white rounded-b-lg",style:{borderColor:rt.border},children:[i.jsxs("div",{children:[i.jsx("label",{className:"text-xs font-medium text-gray-600 block mb-1",children:"Progress Note"}),i.jsx("textarea",{value:et,onChange:Rn=>Ie(Rn.target.value),rows:2,placeholder:"What has been done...",className:"w-full border rounded-lg px-3 py-2 text-sm resize-none"})]}),i.jsxs("div",{children:[i.jsx("label",{className:"text-xs font-medium text-gray-600 block mb-1",children:"Deliverable / Evidence"}),i.jsx("textarea",{value:Gt,onChange:Rn=>Ot(Rn.target.value),rows:3,placeholder:"Describe what was delivered...",className:"w-full border rounded-lg px-3 py-2 text-sm resize-none"})]}),i.jsxs("div",{className:"flex justify-end gap-2",children:[i.jsx("button",{onClick:()=>{ae(null),Ie(""),Ot("")},className:"px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50",children:"Cancel"}),i.jsxs("button",{onClick:()=>Bc(H.id),className:"px-3 py-1.5 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-1",children:[i.jsx(Uc,{size:12})," Save"]})]})]})]},H.id)})})]}),((ui=v.odooSteps)==null?void 0:ui.length)>0&&i.jsxs("div",{children:[i.jsx("div",{className:"text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2",children:"Odoo Configuration Steps"}),i.jsx("div",{className:"space-y-1.5",children:v.odooSteps.map((H,Ye)=>i.jsxs("div",{className:"flex items-start gap-2 text-sm p-2 rounded-lg bg-green-50 border border-green-100",children:[i.jsx(Dc,{size:14,className:"text-green-600 mt-0.5 flex-shrink-0"}),i.jsx("span",{className:"text-green-800",children:H})]},Ye))})]}),((ai=v.authorities)==null?void 0:ai.length)>0&&i.jsxs("div",{children:[i.jsx("div",{className:"text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2",children:"Approval Authority"}),i.jsx("div",{className:"flex flex-wrap gap-1.5",children:v.authorities.map((H,Ye)=>i.jsx("span",{className:"text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 border border-gray-200",children:H},Ye))})]}),v.note&&i.jsxs("div",{className:"p-3 bg-amber-50 rounded-r-lg text-xs text-amber-800 leading-relaxed",style:{borderLeft:"3px solid #f59e0b"},children:[i.jsx("strong",{children:"Note:"})," ",v.note]})]})]},v.id)})]}),c==="progress"&&i.jsxs("div",{className:"space-y-4",children:[i.jsxs("div",{className:"flex items-center justify-between",children:[i.jsx("h3",{className:"font-semibold text-gray-900",children:"Implementation Progress Reports"}),je&&i.jsxs("button",{onClick:()=>p("submit"),className:"px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 flex items-center gap-1.5",children:[i.jsx(mo,{size:13})," New Report"]})]}),h.length===0?i.jsxs("div",{className:"text-center py-16 text-gray-400 bg-white rounded-xl border",children:[i.jsx(Up,{size:48,className:"mx-auto mb-3 opacity-40"}),i.jsx("p",{className:"text-sm",children:"No reports filed yet"})]}):i.jsx("div",{className:"space-y-4",children:h.map(v=>{var M,ne;const P=E===v.id;return i.jsxs("div",{className:`border rounded-xl overflow-hidden bg-white ${P?"border-blue-300 shadow-md":"border-gray-200"}`,children:[i.jsxs("button",{onClick:()=>_(P?null:v.id),className:"w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 text-left",children:[i.jsx("div",{className:"w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0",children:i.jsx(ku,{size:18,className:"text-blue-600"})}),i.jsxs("div",{className:"flex-1",children:[i.jsx("span",{className:"font-semibold text-sm text-gray-900",children:v.title}),i.jsxs("div",{className:"flex items-center gap-3 text-xs text-gray-500 mt-1 flex-wrap",children:[i.jsx("span",{children:v.submitted_by_name}),i.jsx("span",{children:"•"}),i.jsx("span",{children:new Date(v.submitted_at).toLocaleDateString()}),i.jsxs("span",{className:"px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium",children:["Phase ",v.phase_number," — ",((M=v.tasksSnapshot)==null?void 0:M.length)||0," tasks"]})]})]}),P?i.jsx(wu,{size:16,className:"text-gray-400"}):i.jsx(xu,{size:16,className:"text-gray-400"})]}),P&&i.jsxs("div",{className:"border-t border-gray-100 px-5 py-4 space-y-4",children:[i.jsxs("div",{children:[i.jsx("div",{className:"text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2",children:"Summary"}),i.jsx("p",{className:"text-sm text-gray-700 leading-relaxed",children:v.summary})]}),((ne=v.findings)==null?void 0:ne.length)>0&&i.jsxs("div",{children:[i.jsx("div",{className:"text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2",children:"Key Findings"}),i.jsx("div",{className:"space-y-1.5",children:v.findings.map((oe,Tn)=>i.jsxs("div",{className:"flex items-start gap-2 text-sm text-gray-700 p-2 bg-amber-50 rounded-lg border border-amber-100",children:[i.jsx(Vp,{size:14,className:"text-amber-600 mt-0.5 flex-shrink-0"}),i.jsx("span",{children:oe})]},Tn))})]})]})]},v.id)})})]}),c==="submit"&&je&&i.jsxs("div",{className:"space-y-5",children:[j&&i.jsxs("div",{className:"p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3",children:[i.jsx(si,{size:20,className:"text-green-600"}),i.jsxs("div",{children:[i.jsx("div",{className:"font-medium text-green-800 text-sm",children:"Report submitted"}),i.jsx("div",{className:"text-xs text-green-600",children:"Visible to VC, Registrar, and VP Operations."})]})]}),i.jsxs("div",{className:"bg-white border border-gray-200 rounded-xl p-6 space-y-5",children:[i.jsxs("div",{children:[i.jsx("h3",{className:"font-semibold text-gray-900 text-lg",children:"Submit Progress Report"}),i.jsx("p",{className:"text-sm text-gray-500 mt-1",children:"Saved to the database and visible to management immediately."})]}),i.jsxs("div",{className:"bg-blue-50 border border-blue-200 rounded-lg p-4",children:[i.jsx("div",{className:"text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2",children:"Current Status"}),i.jsxs("div",{className:"grid grid-cols-3 gap-4 text-sm",children:[i.jsxs("div",{children:[i.jsx("span",{className:"text-gray-500",children:"Progress:"})," ",i.jsxs("span",{className:"font-semibold text-blue-700",children:[Xc,"%"]})]}),i.jsxs("div",{children:[i.jsx("span",{className:"text-gray-500",children:"Completed:"})," ",i.jsxs("span",{className:"font-semibold text-green-700",children:[Kc,"/",Yc]})]}),i.jsxs("div",{children:[i.jsx("span",{className:"text-gray-500",children:"Reports filed:"})," ",i.jsx("span",{className:"font-semibold text-purple-700",children:h.length})]})]})]}),i.jsxs("div",{children:[i.jsx("label",{className:"text-sm font-medium text-gray-700 block mb-1.5",children:"Report Title *"}),i.jsx("input",{value:ve.title,onChange:v=>be(P=>({...P,title:v.target.value})),placeholder:"e.g., Week 3 Progress — Phase 1 Policy Drafts",className:"w-full border rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-300"})]}),i.jsxs("div",{children:[i.jsx("label",{className:"text-sm font-medium text-gray-700 block mb-1.5",children:"Summary *"}),i.jsx("textarea",{value:ve.summary,onChange:v=>be(P=>({...P,summary:v.target.value})),rows:4,placeholder:"What was accomplished, blockers, next steps...",className:"w-full border rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-300 resize-none"})]}),i.jsxs("div",{children:[i.jsx("label",{className:"text-sm font-medium text-gray-700 block mb-1.5",children:"Key Findings"}),ve.keyFindings.map((v,P)=>i.jsxs("div",{className:"flex items-center gap-2 mb-2",children:[i.jsx("input",{value:v,onChange:M=>{const ne=[...ve.keyFindings];ne[P]=M.target.value,be(oe=>({...oe,keyFindings:ne}))},placeholder:`Finding ${P+1}...`,className:"flex-1 border rounded-lg px-3 py-2 text-sm"}),ve.keyFindings.length>1&&i.jsx("button",{onClick:()=>be(M=>({...M,keyFindings:M.keyFindings.filter((ne,oe)=>oe!==P)})),className:"p-1.5 text-gray-400 hover:text-red-500",children:i.jsx(tr,{size:14})})]},P)),i.jsxs("button",{onClick:()=>be(v=>({...v,keyFindings:[...v.keyFindings,""]})),className:"text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1",children:[i.jsx(er,{size:13})," Add finding"]})]}),i.jsxs("div",{className:"flex items-center justify-between pt-2 border-t border-gray-100",children:[i.jsx("button",{onClick:()=>p("roadmap"),className:"px-4 py-2 text-sm border rounded-lg hover:bg-gray-50",children:"Back"}),i.jsxs("button",{onClick:Wc,className:"px-5 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-2",children:[i.jsx(mo,{size:15})," Submit Report"]})]})]})]}),c==="manage"&&Ke&&i.jsxs("div",{className:"space-y-4",children:[i.jsxs("div",{className:"flex items-center justify-between",children:[i.jsxs("div",{children:[i.jsx("h3",{className:"font-semibold text-gray-900",children:"Manage Roadmap"}),i.jsx("p",{className:"text-sm text-gray-500",children:"Add, edit, or remove phases. Changes are saved to the database."})]}),i.jsxs("button",{onClick:Qc,className:"px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 flex items-center gap-2",children:[i.jsx(er,{size:16})," Add Phase"]})]}),g.map((v,P)=>{const M=v.tasks.filter(oe=>oe.status==="completed").length,ne=yo[v.phase]||"#6b7280";return i.jsxs("div",{className:"bg-white border rounded-xl p-5 flex items-center gap-4",children:[i.jsx("div",{className:"w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",style:{backgroundColor:ne+"18",color:ne},children:v.phase}),i.jsxs("div",{className:"flex-1 min-w-0",children:[i.jsx("div",{className:"font-semibold text-gray-900 text-sm",children:v.title}),i.jsxs("div",{className:"text-xs text-gray-500 mt-0.5",children:[v.timeline," · ",v.tasks.length," tasks · ",M," done"]})]}),i.jsxs("button",{onClick:()=>$(P),className:"px-3 py-1.5 text-xs bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 flex items-center gap-1 font-medium",children:[i.jsx(po,{size:13})," Edit"]}),i.jsxs("button",{onClick:()=>bc(v.id,v.title),className:"px-3 py-1.5 text-xs bg-red-50 text-red-600 rounded-lg hover:bg-red-100 flex items-center gap-1",children:[i.jsx(tr,{size:13})," Remove"]})]},v.id)})]}),c==="summary"&&i.jsxs("div",{className:"space-y-6",children:[i.jsxs("div",{className:"bg-white border rounded-xl p-5",children:[i.jsx("h3",{className:"font-semibold text-gray-900 mb-4",children:"Phase Progress Overview"}),i.jsx("div",{className:"space-y-3",children:g.map(v=>{const P=v.tasks.filter(Tn=>Tn.status==="completed").length,M=v.tasks.length,ne=M>0?Math.round(P/M*100):0,oe=yo[v.phase]||"#6b7280";return i.jsxs("div",{className:"flex items-center gap-3",children:[i.jsx("div",{className:"w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0",style:{backgroundColor:oe+"18",color:oe},children:v.phase}),i.jsxs("div",{className:"flex-1",children:[i.jsxs("div",{className:"flex items-center justify-between mb-1",children:[i.jsx("span",{className:"text-sm text-gray-700 truncate",children:v.title}),i.jsxs("span",{className:"text-xs font-medium ml-2",style:{color:oe},children:[ne,"%"]})]}),i.jsx("div",{className:"h-2 bg-gray-100 rounded-full overflow-hidden",children:i.jsx("div",{className:"h-full rounded-full",style:{width:`${ne}%`,backgroundColor:oe}})})]}),i.jsxs("span",{className:"text-xs text-gray-400 w-12 text-right flex-shrink-0",children:[P,"/",M]})]},v.id)})})]}),i.jsxs("div",{className:"grid grid-cols-2 gap-4",children:[i.jsxs("div",{className:"bg-blue-50 border border-blue-200 rounded-xl p-5",children:[i.jsx("h4",{className:"font-semibold text-blue-800 mb-1",children:"Academic HR Vertical"}),i.jsx("p",{className:"text-xs text-blue-600",children:"Faculty lifecycle · HEC compliance · Research & performance"})]}),i.jsxs("div",{className:"bg-green-50 border border-green-200 rounded-xl p-5",children:[i.jsx("h4",{className:"font-semibold text-green-800 mb-1",children:"Corporate HR Vertical"}),i.jsx("p",{className:"text-xs text-green-600",children:"Admin & support staff · Payroll · Operations"})]})]}),h.length>0&&i.jsxs("div",{className:"bg-white border rounded-xl p-5",children:[i.jsx("h3",{className:"font-semibold text-gray-900 mb-4",children:"Report History"}),i.jsxs("table",{className:"w-full text-sm",children:[i.jsx("thead",{children:i.jsxs("tr",{className:"border-b border-gray-100",children:[i.jsx("th",{className:"text-left py-2 px-3 text-xs text-gray-400 font-medium",children:"Date"}),i.jsx("th",{className:"text-left py-2 px-3 text-xs text-gray-400 font-medium",children:"Title"}),i.jsx("th",{className:"text-left py-2 px-3 text-xs text-gray-400 font-medium",children:"Phase"}),i.jsx("th",{className:"text-left py-2 px-3 text-xs text-gray-400 font-medium",children:"Tasks"})]})}),i.jsx("tbody",{children:h.map(v=>{var P;return i.jsxs("tr",{className:"border-b border-gray-50 hover:bg-gray-50",children:[i.jsx("td",{className:"py-2 px-3 text-gray-600",children:new Date(v.submitted_at).toLocaleDateString()}),i.jsx("td",{className:"py-2 px-3 text-gray-800 font-medium",children:v.title}),i.jsx("td",{className:"py-2 px-3",children:i.jsx("span",{className:"px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs",children:v.phase_number})}),i.jsx("td",{className:"py-2 px-3 text-gray-600",children:((P=v.tasksSnapshot)==null?void 0:P.length)||0})]},v.id)})})]})]})]})]})]})}vo.createRoot(document.getElementById("root")).render(i.jsx(vd.StrictMode,{children:i.jsx(Zp,{})}));
 
 </script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style id="must-brand-override">
+  :root {
+    --must-navy: #1B3A5C;
+    --must-orange: #E8792B;
+    --must-gold: #C5A54E;
+    --must-bg: #F5F6FA;
+  }
+  *, body, html, input, select, textarea, button {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+  }
+
+  /* ===== LOGIN PAGE ===== */
+  /* Login background */
+  .min-h-screen.bg-gradient-to-br.from-slate-50 {
+    background: linear-gradient(135deg, #f5f6fa 0%, #ffffff 100%) !important;
+  }
+
+  /* Login card heading icon - make it navy */
+  .w-12.h-12.rounded-2xl.bg-gradient-to-br.from-blue-600.to-indigo-600 {
+    background: var(--must-navy) !important;
+    background-image: none !important;
+  }
+
+  /* Login "Sign In" button */
+  .bg-blue-600 {
+    background-color: var(--must-orange) !important;
+  }
+  .bg-blue-600:hover, .hover\:bg-blue-700:hover {
+    background-color: #d06a1f !important;
+  }
+
+  /* Login focus rings */
+  .focus\:ring-blue-300:focus {
+    --tw-ring-color: rgba(232, 121, 43, 0.4) !important;
+  }
+  .focus\:border-blue-300:focus {
+    border-color: var(--must-orange) !important;
+  }
+
+  /* ===== TOP NAVIGATION BAR ===== */
+  /* Main header bar */
+  .bg-white.border-b.border-gray-200.shadow-sm > div {
+    /* Keep the white header but adjust colors inside */
+  }
+  
+  /* Logo icon in header */
+  .w-9.h-9.rounded-xl.bg-gradient-to-br.from-blue-600.to-indigo-600 {
+    background: var(--must-navy) !important;
+    background-image: none !important;
+  }
+
+  /* Role badge colors - override blue/indigo tones */
+  [style*="color: rgb(99, 102, 241)"],
+  [style*="color:#6366f1"] {
+    color: var(--must-navy) !important;
+  }
+
+  /* ===== TAB NAVIGATION ===== */
+  /* Active tab */
+  .border-blue-500 {
+    border-color: var(--must-orange) !important;
+  }
+  .text-blue-700 {
+    color: var(--must-navy) !important;
+  }
+  .border-blue-500.text-blue-700 {
+    border-color: var(--must-orange) !important;
+    color: var(--must-navy) !important;
+  }
+
+  /* ===== STAT CARDS ===== */
+  /* Blue stat values */
+  [style*="color: rgb(59, 130, 246)"],
+  [style*="color:#3b82f6"] {
+    color: var(--must-navy) !important;
+  }
+  /* Blue progress bars */  
+  [style*="background-color: rgb(59, 130, 246)"],
+  [style*="background-color:#3b82f6"] {
+    background-color: var(--must-navy) !important;
+  }
+  /* Orange stat */
+  [style*="color: rgb(217, 119, 6)"],
+  [style*="color:#d97706"] {
+    color: var(--must-orange) !important;
+  }
+  /* Purple stat */
+  [style*="color: rgb(124, 58, 237)"],
+  [style*="color:#7c3aed"] {
+    color: var(--must-gold) !important;
+  }
+
+  /* ===== PHASE CARDS & PROGRESS ===== */
+  /* Blue phase indicators */
+  .bg-blue-100 {
+    background-color: rgba(27, 58, 92, 0.1) !important;
+  }
+  .text-blue-600 {
+    color: var(--must-navy) !important;
+  }
+
+  /* Status badges */
+  .bg-blue-50 { background-color: rgba(27, 58, 92, 0.05) !important; }
+  .text-blue-700, .text-blue-800 { color: var(--must-navy) !important; }
+  .border-blue-200, .border-blue-300 { border-color: rgba(27, 58, 92, 0.2) !important; }
+  .bg-blue-600.text-white, button.bg-blue-600 { background-color: var(--must-orange) !important; }
+
+  /* ===== BUTTONS ===== */
+  .bg-blue-600, .bg-blue-700 {
+    background-color: var(--must-orange) !important;
+  }
+  .hover\:bg-blue-700:hover {
+    background-color: #d06a1f !important;
+  }
+  .bg-indigo-600, .bg-indigo-700 {
+    background-color: var(--must-navy) !important;
+  }
+  .hover\:bg-indigo-700:hover {
+    background-color: #14293f !important;
+  }
+  .bg-indigo-50 {
+    background-color: rgba(27, 58, 92, 0.08) !important;
+  }
+  .text-indigo-700 {
+    color: var(--must-navy) !important;
+  }
+  .hover\:bg-indigo-100:hover {
+    background-color: rgba(27, 58, 92, 0.15) !important;
+  }
+
+  /* ===== BODY BACKGROUND ===== */
+  .min-h-screen.bg-gray-50 {
+    background-color: var(--must-bg) !important;
+  }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--must-bg); }
+  ::-webkit-scrollbar-thumb { background: var(--must-navy); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--must-orange); }
+
+  /* ===== MISC ===== */
+  /* Ring focus on all inputs/selects */
+  select:focus, input:focus, textarea:focus {
+    --tw-ring-color: rgba(232, 121, 43, 0.3) !important;
+    border-color: var(--must-orange) !important;
+  }
+  
+  /* Smooth transitions */
+  * { transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; }
+</style>
+
 </head>
 <body>
   <div id="root"></div>
 
 
+
+
 <script>
-// Replace username text input with a dropdown populated from the API
+// MUST branding DOM injection
 (function() {
+  const LOGO_URL = "https://framerusercontent.com/images/HnDLdDZjdAZMpkFdRte6nEPHg.png";
+  
   const observer = new MutationObserver(() => {
+    
+    // ===== LOGIN PAGE: Add MUST logo and restyle =====
+    const loginHeading = document.querySelector('.min-h-screen.bg-gradient-to-br h1');
+    if (loginHeading && loginHeading.textContent.includes('MUST') && !document.getElementById('must-login-logo')) {
+      // Find the icon div and replace with logo
+      const iconContainer = loginHeading.closest('.text-center')?.querySelector('.inline-flex');
+      if (iconContainer) {
+        const logo = document.createElement('img');
+        logo.id = 'must-login-logo';
+        logo.src = LOGO_URL;
+        logo.alt = 'MUST Logo';
+        logo.style.cssText = 'height:64px;object-fit:contain;margin:0 auto 16px;display:block;';
+        iconContainer.replaceWith(logo);
+      }
+      // Update subtitle
+      const subtitle = loginHeading.closest('.text-center')?.querySelector('p.text-sm');
+      if (subtitle) subtitle.textContent = 'Multan University of Science and Technology';
+      
+      // Restyle the heading
+      loginHeading.style.color = '#1B3A5C';
+      loginHeading.textContent = 'Odoo HR Implementation Tracker';
+      loginHeading.style.fontSize = '16px';
+      loginHeading.style.fontWeight = '600';
+    }
+    
+    // ===== LOGIN PAGE: Replace username input with dropdown =====
     const usernameInput = document.querySelector('input[placeholder="e.g. nasra.naqvi"]');
     if (usernameInput && !usernameInput.dataset.replaced) {
       usernameInput.dataset.replaced = "true";
-      
-      // Create select element
       const select = document.createElement("select");
       select.className = usernameInput.className;
       select.style.cssText = usernameInput.style.cssText + ";appearance:auto;cursor:pointer;";
-      
-      // Add default option
       const defaultOpt = document.createElement("option");
       defaultOpt.value = "";
       defaultOpt.textContent = "Select a user...";
       defaultOpt.disabled = true;
       defaultOpt.selected = true;
       select.appendChild(defaultOpt);
-      
-      // Fetch users from API
       fetch("/api/auth/users")
         .then(r => r.json())
         .then(data => {
           (data.users || []).forEach(u => {
             const opt = document.createElement("option");
             opt.value = u.username;
-            opt.textContent = u.display_name + " (" + u.username + ")";
+            opt.textContent = u.display_name + " (" + u.role + ")";
             select.appendChild(opt);
           });
         })
         .catch(() => {
-          // Fallback if API fails
           ["admin", "nasra.naqvi", "registrar", "vpops"].forEach(name => {
             const opt = document.createElement("option");
             opt.value = name;
@@ -253,23 +430,64 @@ Error generating stack: `+o.message+`
             select.appendChild(opt);
           });
         });
-      
-      // Mirror value changes back to React state
       select.addEventListener("change", () => {
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-          window.HTMLInputElement.prototype, "value"
-        ).set;
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
         nativeInputValueSetter.call(usernameInput, select.value);
         usernameInput.dispatchEvent(new Event("input", { bubbles: true }));
       });
-      
-      // Replace input with select in the DOM
       usernameInput.style.display = "none";
       usernameInput.parentNode.insertBefore(select, usernameInput.nextSibling);
     }
+    
+    // ===== LOGIN PAGE: Update default password hint styling =====
+    const pwHint = document.querySelector('.text-xs.text-gray-400.text-center .font-mono');
+    if (pwHint) {
+      pwHint.style.backgroundColor = 'rgba(232, 121, 43, 0.1)';
+      pwHint.style.color = '#E8792B';
+    }
+    
+    // ===== MAIN APP: Restyle header =====
+    const headerTitle = document.querySelector('.text-sm.font-bold.text-gray-900');
+    if (headerTitle && headerTitle.textContent.includes('MUST')) {
+      headerTitle.style.color = '#1B3A5C';
+    }
+    const headerSub = document.querySelector('.text-xs.text-gray-400');
+    if (headerSub && headerSub.textContent.includes('Standalone')) {
+      headerSub.textContent = 'Multan University of Science & Technology';
+      headerSub.style.color = '#E8792B';
+    }
+    
+    // ===== MAIN APP: Add MUST logo to header =====
+    const headerLogoIcon = document.querySelector('.bg-white.border-b .w-9.h-9.rounded-xl');
+    if (headerLogoIcon && !document.getElementById('must-header-logo')) {
+      const logoImg = document.createElement('img');
+      logoImg.id = 'must-header-logo';
+      logoImg.src = LOGO_URL;
+      logoImg.alt = 'MUST';
+      logoImg.style.cssText = 'height:36px;width:36px;object-fit:contain;border-radius:8px;';
+      headerLogoIcon.replaceWith(logoImg);
+    }
+    
+    // ===== LOGIN: Restyle "Available accounts" section =====
+    const availableAccounts = document.querySelector('.text-xs.text-gray-400.text-center.pt-2.border-t');
+    if (availableAccounts && !availableAccounts.dataset.styled) {
+      availableAccounts.dataset.styled = 'true';
+      availableAccounts.style.borderColor = 'rgba(27, 58, 92, 0.1)';
+      const heading = availableAccounts.querySelector('.font-medium');
+      if (heading) heading.style.color = '#1B3A5C';
+    }
+    
+    // ===== Restyle "Powered by" footer-like text if present =====
+    const loginFooter = document.querySelector('.text-center.mt-6');
+    if (loginFooter && !loginFooter.dataset.styled) {
+      loginFooter.dataset.styled = 'true';
+      loginFooter.innerHTML = '<p class="text-xs text-gray-400">Powered by MUST</p>';
+    }
   });
+  
   observer.observe(document.body, { childList: true, subtree: true });
 })();
 </script>
+
 </body>
 </html>
