@@ -168,6 +168,12 @@ async function initDb() {
     seedDefaults();
     seedOrgStructure();
   }
+
+  // Seed organogram if table is empty (runs on existing DBs too)
+  const orgCnt = getP("SELECT COUNT(*) as cnt FROM org_positions");
+  if (!orgCnt || orgCnt.cnt === 0) {
+    seedOrgStructure();
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
