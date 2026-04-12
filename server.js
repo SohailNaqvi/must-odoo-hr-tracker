@@ -149,17 +149,12 @@ async function initDb() {
     sort_order INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
-  `);
+  )`);
 
   // Migration: add must_change_password column if it doesn't exist
   try {
     db.exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 1");
   } catch(e) { /* column already exists */ }
-  // Set admin to not require password change
-  try {
-    db.run("UPDATE users SET must_change_password = 0 WHERE username = 'admin'");
-  } catch(e) {}
-
   saveDb();
 
   // Seed if empty
@@ -168,6 +163,12 @@ async function initDb() {
     seedDefaults();
     seedOrgStructure();
   }
+
+  // Set admin to not require password change (runs after seed so admin exists)
+  try {
+    db.run("UPDATE users SET must_change_password = 0 WHERE username = 'admin'");
+    saveDb();
+  } catch(e) {}
 
   // Seed organogram if table is empty (runs on existing DBs too)
   const orgCnt = getP("SELECT COUNT(*) as cnt FROM org_positions");
