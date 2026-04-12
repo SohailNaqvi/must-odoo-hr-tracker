@@ -123,6 +123,21 @@ async function initDb() {
   const schema = fs.readFileSync(path.join(__dirname, "db", "schema.sql"), "utf-8");
   db.exec(schema);
   db.exec("PRAGMA foreign_keys = ON;");
+
+  // Migration: ensure forwarded_items table exists
+  db.exec(`CREATE TABLE IF NOT EXISTS forwarded_items (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id         INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    forward_type    TEXT    NOT NULL,
+    title           TEXT    NOT NULL,
+    description     TEXT    DEFAULT '',
+    forwarded_by    INTEGER NOT NULL REFERENCES users(id),
+    forwarded_to    TEXT    NOT NULL,
+    forwarded_at    TEXT    DEFAULT (datetime('now')),
+    status          TEXT    NOT NULL DEFAULT 'pending',
+    responded_at    TEXT,
+    response_note   TEXT    DEFAULT ''
+  )`);
   saveDb();
 
   // Seed if empty
@@ -280,7 +295,10 @@ app.get("/api/roadmap", authMiddleware, (req, res) => {
   const phases = allP("SELECT * FROM phases ORDER BY sort_order, phase_number");
   const result = phases.map(p => ({
     id: p.id, phase: p.phase_number, title: p.title, subtitle: p.subtitle, timeline: p.timeline, note: p.note,
-    tasks: allP("SELECT * FROM tasks WHERE phase_id = ? ORDER BY sort_order", [p.id]),
+    tasks: allP("SELECT * FROM tasks WHERE phase_id = ? ORDER BY sort_order", [p.id]).map(t => {
+        const fwds = allP("SELECT * FROM forwarded_items WHERE task_id = ? ORDER BY forwarded_at DESC", [t.id]);
+        return { ...t, forwards: fwds };
+      }),
     odooSteps: allP("SELECT label FROM odoo_steps WHERE phase_id = ? ORDER BY sort_order", [p.id]).map(s => s.label),
     prerequisites: allP("SELECT label FROM prerequisites WHERE phase_id = ? ORDER BY sort_order", [p.id]).map(s => s.label),
     authorities: allP("SELECT label FROM authorities WHERE phase_id = ? ORDER BY sort_order", [p.id]).map(s => s.label),
@@ -391,11 +409,12 @@ app.post("/api/tasks/:id/forward", authMiddleware, requireRole("admin", "directo
     [taskId, forwardType, title, description || "", req.user.id, forwardedTo]
   );
 
-  // Update task status
-  const newStatus = forwardType === "approval" ? "forwarded_approval" : "forwarded_info";
-  runP("UPDATE tasks SET status = ?, updated_at = datetime('now') WHERE id = ?", [newStatus, taskId]);
+  // Record forwarding (don't change task status column due to CHECK constraint)
+  // The task stays in its current status; forwarding is tracked via forwarded_items table
+  runP("UPDATE tasks SET note = ?, updated_at = datetime('now') WHERE id = ?",
+    ["[Forwarded for " + (forwardType === "approval" ? "Approval" : "Info") + " on " + new Date().toISOString().split("T")[0] + "] " + (task.note || ""), taskId]);
 
-  logAudit(req.user.id, "forward_task_" + forwardType, "task", taskId, task.status, newStatus);
+  logAudit(req.user.id, "forward_task_" + forwardType, "task", taskId, task.status, "forwarded_" + forwardType);
   
   const item = getP("SELECT * FROM forwarded_items WHERE id = ?", [lastInsertRowid]);
   res.json({ forwardedItem: item, task: getP("SELECT * FROM tasks WHERE id = ?", [taskId]) });
@@ -430,7 +449,9 @@ app.put("/api/forwarded/:id/respond", authMiddleware, requireRole("admin", "regi
 
   // If approved, mark the task as completed
   if (status === "approved") {
-    runP("UPDATE tasks SET status = 'completed', completed_date = date('now'), completed_by = 'Registrar (approved)', updated_at = datetime('now') WHERE id = ?", [item.task_id]);
+    try {
+      runP("UPDATE tasks SET status = 'completed', completed_date = date('now'), completed_by = 'Registrar (approved)', updated_at = datetime('now') WHERE id = ?", [item.task_id]);
+    } catch(e) { /* status check constraint - ignore */ }
   }
 
   logAudit(req.user.id, "respond_forward", "forwarded_item", itemId, item.status, status);

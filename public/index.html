@@ -711,118 +711,83 @@ Error generating stack: `+o.message+`
       
       sel.dataset.forwardInjected = 'true';
       
-      // Add forwarding options to the dropdown
-      if (!options.includes('forwarded_approval')) {
-        const optApproval = document.createElement('option');
-        optApproval.value = 'forwarded_approval';
-        optApproval.textContent = '→ Fwd for Approval';
-        optApproval.style.color = '#E8792B';
-        sel.appendChild(optApproval);
-      }
-      if (!options.includes('forwarded_info')) {
-        const optInfo = document.createElement('option');
-        optInfo.value = 'forwarded_info';
-        optInfo.textContent = '→ Fwd for Info';
-        optInfo.style.color = '#1B3A5C';
-        sel.appendChild(optInfo);
+      // Add forward buttons next to the select dropdown
+      const btnContainer = document.createElement('div');
+      btnContainer.style.cssText = 'display:flex;gap:3px;margin-left:4px;';
+      
+      const btnApproval = document.createElement('button');
+      btnApproval.textContent = '↗A';
+      btnApproval.title = 'Forward for Approval';
+      btnApproval.style.cssText = 'padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #E8792B;background:#FFF7ED;color:#E8792B;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;';
+      
+      const btnInfo = document.createElement('button');
+      btnInfo.textContent = '↗I';
+      btnInfo.title = 'Forward for Info';
+      btnInfo.style.cssText = 'padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #1B3A5C;background:#EFF6FF;color:#1B3A5C;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;';
+      
+      btnContainer.appendChild(btnApproval);
+      btnContainer.appendChild(btnInfo);
+      sel.parentNode.insertBefore(btnContainer, sel.nextSibling);
+      
+      // Find task label and ID when button is clicked
+      function getTaskInfo(btn) {
+        const subRow = btn.closest('[class*="rounded-lg"][class*="border"]');
+        const taskLabel = subRow ? (subRow.querySelector('.text-sm.text-gray-800') || subRow.querySelector('[class*="text-sm"][class*="text-gray"]'))?.textContent?.trim() || '' : '';
+        return { subRow, taskLabel };
       }
       
-      // Intercept selection of forward options
-      sel.addEventListener('change', function(e) {
-        const val = e.target.value;
-        if (val === 'forwarded_approval' || val === 'forwarded_info') {
-          e.stopImmediatePropagation();
-          e.preventDefault();
-          
-          // Reset dropdown to previous value
-          const prevStatus = sel.dataset.prevStatus || 'pending';
-          sel.value = prevStatus;
-          
-          // Get task ID from the DOM context
-          const subRow = sel.closest('[class*="rounded-lg"][class*="border"]');
-          const taskLabel = subRow ? subRow.querySelector('[class*="text-sm"][class*="text-gray"]')?.textContent || '' : '';
-          
-          // Find task ID - look at the star rating or edit button IDs
-          let taskId = null;
-          const editBtn = subRow ? subRow.querySelector('button[class*="rounded-md"]') : null;
-          // Try onclick handler
-          const statusSelect = sel;
-          const onChangeStr = statusSelect.getAttribute('onchange') || '';
-          
-          // Alternative: use the React fiber to find the task ID
-          const fiberKey = Object.keys(subRow || {}).find(k => k.startsWith('__reactFiber'));
-          if (fiberKey && subRow[fiberKey]) {
-            let fiber = subRow[fiberKey];
-            for (let i = 0; i < 20; i++) {
-              if (fiber.memoizedProps && fiber.memoizedProps.children) {
-                const props = fiber.memoizedProps;
-                if (props.onChange && typeof props.onChange === 'function') {
-                  // Found the select's onChange - extract task ID from closure
-                  break;
-                }
-              }
-              if (fiber.return) fiber = fiber.return;
-              else break;
-            }
-          }
-          
-          // Get task ID from the select's React event handler
-          // The select onChange calls Hc(H.id, value) - we need H.id
-          // Parse it from sibling elements or use a data attribute approach
-          
-          // Workaround: use the API to find the task by searching
-          fetch('/api/roadmap', {
-            headers: { 'Authorization': 'Bearer ' + (document.getElementById('__app_token')?.value || '') }
-          })
-          .then(r => r.json())
-          .then(data => {
-            let foundId = null;
-            (data.roadmap || []).forEach(phase => {
-              (phase.tasks || []).forEach(task => {
-                if (task.label === taskLabel.trim()) {
-                  foundId = task.id;
-                }
-              });
+      function findTaskIdAndForward(taskLabel, forwardType) {
+        const token = document.getElementById('__app_token')?.value || '';
+        fetch('/api/roadmap', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        })
+        .then(r => r.json())
+        .then(data => {
+          let foundId = null;
+          (data.roadmap || []).forEach(phase => {
+            (phase.tasks || []).forEach(task => {
+              if (task.label.trim() === taskLabel) foundId = task.id;
             });
-            if (foundId) {
-              const fwdType = val === 'forwarded_approval' ? 'approval' : 'info';
-              openForwardModal(foundId, fwdType, taskLabel);
-            } else {
-              showForwardNotification('Could not identify task. Please try again.', 'error');
-            }
           });
-          
-          return false;
-        }
-        sel.dataset.prevStatus = val;
-      }, true);
+          if (foundId) {
+            openForwardModal(foundId, forwardType, taskLabel);
+          } else {
+            showForwardNotification('Could not identify task. Try refreshing.', 'error');
+          }
+        })
+        .catch(() => showForwardNotification('Failed to load tasks', 'error'));
+      }
       
-      // Store current value
-      sel.dataset.prevStatus = sel.value;
+      btnApproval.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const { taskLabel } = getTaskInfo(btnApproval);
+        findTaskIdAndForward(taskLabel, 'approval');
+      });
+      
+      btnInfo.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const { taskLabel } = getTaskInfo(btnInfo);
+        findTaskIdAndForward(taskLabel, 'info');
+      });
     });
     
-    // ===== Show forwarded status badges on tasks =====
-    document.querySelectorAll('[class*="rounded-full"][class*="text-xs"][class*="font-medium"]').forEach(badge => {
-      if (badge.textContent === 'Forwarded' || badge.dataset.fwdStyled) return;
-      if (badge.style.backgroundColor && badge.closest('[class*="sub-row"], [class*="rounded-lg"][class*="border"]')) {
-        // Check for forwarded_approval or forwarded_info status in sibling select
-        const parent = badge.closest('[class*="rounded-lg"][class*="border"]');
-        if (parent) {
-          const sel = parent.querySelector('select');
-          if (sel && sel.value === 'forwarded_approval') {
-            badge.textContent = 'Fwd: Approval';
-            badge.style.backgroundColor = '#FFF7ED';
-            badge.style.color = '#E8792B';
-            badge.style.borderColor = '#FDBA74';
-            badge.dataset.fwdStyled = 'true';
-          } else if (sel && sel.value === 'forwarded_info') {
-            badge.textContent = 'Fwd: Info';
-            badge.style.backgroundColor = '#EFF6FF';
-            badge.style.color = '#1B3A5C';
-            badge.style.borderColor = '#93C5FD';
-            badge.dataset.fwdStyled = 'true';
-          }
-        }
+    // ===== Show forwarded indicator on tasks that have been forwarded =====
+    // Check task notes for [Forwarded...] prefix and add a visual badge
+    document.querySelectorAll('.text-xs.text-gray-500.mt-1.italic').forEach(noteEl => {
+      if (noteEl.dataset.fwdBadged) return;
+      const text = noteEl.textContent || '';
+      if (text.includes('[Forwarded for Approval')) {
+        noteEl.dataset.fwdBadged = 'true';
+        const badge = document.createElement('span');
+        badge.style.cssText = 'display:inline-block;padding:1px 6px;border-radius:4px;background:#FFF7ED;color:#E8792B;border:1px solid #FDBA74;font-size:10px;font-weight:600;font-style:normal;margin-right:4px;';
+        badge.textContent = '↗ Fwd for Approval';
+        noteEl.parentNode.insertBefore(badge, noteEl);
+      } else if (text.includes('[Forwarded for Info')) {
+        noteEl.dataset.fwdBadged = 'true';
+        const badge = document.createElement('span');
+        badge.style.cssText = 'display:inline-block;padding:1px 6px;border-radius:4px;background:#EFF6FF;color:#1B3A5C;border:1px solid #93C5FD;font-size:10px;font-weight:600;font-style:normal;margin-right:4px;';
+        badge.textContent = '↗ Fwd for Info';
+        noteEl.parentNode.insertBefore(badge, noteEl);
       }
     });
   });
