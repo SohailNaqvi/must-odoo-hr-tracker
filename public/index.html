@@ -209,6 +209,67 @@ Error generating stack: `+o.message+`
 </script>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"></div>
+
+
+<script>
+// Replace username text input with a dropdown populated from the API
+(function() {
+  const observer = new MutationObserver(() => {
+    const usernameInput = document.querySelector('input[placeholder="e.g. nasra.naqvi"]');
+    if (usernameInput && !usernameInput.dataset.replaced) {
+      usernameInput.dataset.replaced = "true";
+      
+      // Create select element
+      const select = document.createElement("select");
+      select.className = usernameInput.className;
+      select.style.cssText = usernameInput.style.cssText + ";appearance:auto;cursor:pointer;";
+      
+      // Add default option
+      const defaultOpt = document.createElement("option");
+      defaultOpt.value = "";
+      defaultOpt.textContent = "Select a user...";
+      defaultOpt.disabled = true;
+      defaultOpt.selected = true;
+      select.appendChild(defaultOpt);
+      
+      // Fetch users from API
+      fetch("/api/auth/users")
+        .then(r => r.json())
+        .then(data => {
+          (data.users || []).forEach(u => {
+            const opt = document.createElement("option");
+            opt.value = u.username;
+            opt.textContent = u.display_name + " (" + u.username + ")";
+            select.appendChild(opt);
+          });
+        })
+        .catch(() => {
+          // Fallback if API fails
+          ["admin", "nasra.naqvi", "registrar", "vpops"].forEach(name => {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+          });
+        });
+      
+      // Mirror value changes back to React state
+      select.addEventListener("change", () => {
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype, "value"
+        ).set;
+        nativeInputValueSetter.call(usernameInput, select.value);
+        usernameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      
+      // Replace input with select in the DOM
+      usernameInput.style.display = "none";
+      usernameInput.parentNode.insertBefore(select, usernameInput.nextSibling);
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
 </body>
 </html>

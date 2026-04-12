@@ -215,6 +215,12 @@ function logAudit(userId, action, entityType, entityId, oldVal, newVal) {
    AUTH ENDPOINTS
    ══════════════════════════════════════════════════════════ */
 
+// Public: list active users for login dropdown
+app.get("/api/auth/users", (req, res) => {
+  const users = allP("SELECT username, display_name, role FROM users WHERE active = 1 ORDER BY display_name");
+  res.json({ users });
+});
+
 app.post("/api/auth/login", (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Username and password required" });
