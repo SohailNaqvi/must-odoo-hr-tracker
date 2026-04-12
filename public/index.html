@@ -799,5 +799,306 @@ Error generating stack: `+o.message+`
 })();
 </script>
 
+
+<script>
+// ===== REGISTRAR APPROVALS PANEL =====
+(function() {
+  let approvalsPanel = null;
+  let approvalsBadge = null;
+  let panelVisible = false;
+
+  function decodeToken(token) {
+    try {
+      const payload = token.split('.')[1];
+      return JSON.parse(atob(payload));
+    } catch { return null; }
+  }
+
+  function getUserRole() {
+    const tokenEl = document.getElementById('__app_token');
+    if (!tokenEl || !tokenEl.value) return null;
+    const decoded = decodeToken(tokenEl.value);
+    return decoded ? decoded.role : null;
+  }
+
+  function getToken() {
+    const tokenEl = document.getElementById('__app_token');
+    return tokenEl ? tokenEl.value : '';
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function createApprovalsPanel() {
+    if (approvalsPanel) return approvalsPanel;
+    const panel = document.createElement('div');
+    panel.id = 'approvals-panel';
+    panel.style.cssText = 'display:none;position:fixed;top:0;right:0;width:480px;max-width:90vw;height:100vh;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,0.15);z-index:9998;font-family:Inter,-apple-system,sans-serif;overflow:hidden;transition:transform 0.3s ease;';
+    panel.innerHTML = `
+      <div style="height:100%;display:flex;flex-direction:column;">
+        <div style="padding:20px 24px;border-bottom:2px solid #1B3A5C;background:linear-gradient(135deg,#1B3A5C 0%,#2a4f73 100%);display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <h2 style="font-size:17px;font-weight:700;color:#fff;margin:0;letter-spacing:-0.2px;">Forwarded Items</h2>
+            <p id="approvals-count" style="font-size:12px;color:rgba(255,255,255,0.7);margin:4px 0 0;">Loading...</p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button id="approvals-refresh" title="Refresh" style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:#fff;">↻</button>
+            <button id="approvals-close" style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#fff;">&times;</button>
+          </div>
+        </div>
+        <div style="padding:12px 24px;border-bottom:1px solid #e5e7eb;display:flex;gap:6px;">
+          <button class="approvals-filter active" data-filter="pending" style="padding:6px 14px;border-radius:20px;border:1px solid #E8792B;background:#FFF7ED;color:#E8792B;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Pending</button>
+          <button class="approvals-filter" data-filter="all" style="padding:6px 14px;border-radius:20px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">All</button>
+          <button class="approvals-filter" data-filter="approval" style="padding:6px 14px;border-radius:20px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Approvals</button>
+          <button class="approvals-filter" data-filter="info" style="padding:6px 14px;border-radius:20px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Info</button>
+        </div>
+        <div id="approvals-list" style="flex:1;overflow-y:auto;padding:16px 24px;">
+          <div style="text-align:center;padding:40px 0;color:#9ca3af;">Loading forwarded items...</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(panel);
+
+    panel.querySelector('#approvals-close').addEventListener('click', () => togglePanel(false));
+    panel.querySelector('#approvals-refresh').addEventListener('click', () => loadForwardedItems());
+
+    // Filter buttons
+    panel.querySelectorAll('.approvals-filter').forEach(btn => {
+      btn.addEventListener('click', () => {
+        panel.querySelectorAll('.approvals-filter').forEach(b => {
+          b.style.background = '#fff'; b.style.color = '#6b7280'; b.style.borderColor = '#d1d5db';
+          b.classList.remove('active');
+        });
+        btn.style.background = '#FFF7ED'; btn.style.color = '#E8792B'; btn.style.borderColor = '#E8792B';
+        btn.classList.add('active');
+        renderItems(btn.dataset.filter);
+      });
+    });
+
+    approvalsPanel = panel;
+    return panel;
+  }
+
+  // Backdrop
+  function createBackdrop() {
+    let bd = document.getElementById('approvals-backdrop');
+    if (!bd) {
+      bd = document.createElement('div');
+      bd.id = 'approvals-backdrop';
+      bd.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:9997;transition:opacity 0.3s;';
+      bd.addEventListener('click', () => togglePanel(false));
+      document.body.appendChild(bd);
+    }
+    return bd;
+  }
+
+  function togglePanel(show) {
+    const panel = createApprovalsPanel();
+    const bd = createBackdrop();
+    panelVisible = show;
+    panel.style.display = show ? 'block' : 'none';
+    bd.style.display = show ? 'block' : 'none';
+    if (show) loadForwardedItems();
+  }
+
+  let cachedItems = [];
+
+  async function loadForwardedItems() {
+    const token = getToken();
+    if (!token) return;
+    const listEl = document.getElementById('approvals-list');
+    try {
+      const resp = await fetch('/api/forwarded', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json();
+      cachedItems = data.forwardedItems || [];
+      const pendingCount = cachedItems.filter(i => i.status === 'pending').length;
+      document.getElementById('approvals-count').textContent = pendingCount + ' pending item' + (pendingCount !== 1 ? 's' : '');
+      updateBadgeCount(pendingCount);
+      // Render with active filter
+      const activeFilter = approvalsPanel.querySelector('.approvals-filter.active');
+      renderItems(activeFilter ? activeFilter.dataset.filter : 'pending');
+    } catch (err) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px 0;color:#dc2626;">Failed to load items</div>';
+    }
+  }
+
+  function renderItems(filter) {
+    const listEl = document.getElementById('approvals-list');
+    let items = cachedItems;
+    if (filter === 'pending') items = items.filter(i => i.status === 'pending');
+    else if (filter === 'approval') items = items.filter(i => i.forward_type === 'approval');
+    else if (filter === 'info') items = items.filter(i => i.forward_type === 'info');
+
+    if (items.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px 0;color:#9ca3af;font-size:13px;">No items found</div>';
+      return;
+    }
+
+    listEl.innerHTML = items.map(item => {
+      const isApproval = item.forward_type === 'approval';
+      const isPending = item.status === 'pending';
+      const typeBadgeBg = isApproval ? '#FFF7ED' : '#EFF6FF';
+      const typeBadgeColor = isApproval ? '#E8792B' : '#1B3A5C';
+      const typeBadgeBorder = isApproval ? '#FDBA74' : '#93C5FD';
+      const typeLabel = isApproval ? 'For Approval' : 'For Info';
+
+      let statusBadge = '';
+      if (item.status === 'approved') statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#D1FAE5;color:#065F46;font-size:10px;font-weight:600;">Approved</span>';
+      else if (item.status === 'noted') statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#E0E7FF;color:#3730A3;font-size:10px;font-weight:600;">Noted</span>';
+      else if (item.status === 'rejected') statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#FEE2E2;color:#991B1B;font-size:10px;font-weight:600;">Rejected</span>';
+      else statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:600;">Pending</span>';
+
+      const actionButtons = isPending ? `
+        <div style="display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6;">
+          ${isApproval ? `
+            <button onclick="window.__approveItem(${item.id}, 'approved')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Approve</button>
+            <button onclick="window.__approveItem(${item.id}, 'rejected')" style="flex:1;padding:8px 12px;border:1px solid #dc2626;border-radius:8px;background:#fff;color:#dc2626;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">✗ Reject</button>
+          ` : `
+            <button onclick="window.__approveItem(${item.id}, 'noted')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#1B3A5C;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Mark as Noted</button>
+          `}
+        </div>
+      ` : (item.response_note ? `<div style="margin-top:8px;padding:8px 10px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#065F46;"><strong>Response:</strong> ${item.response_note}</div>` : '');
+
+      return `
+        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:#fff;${isPending ? 'border-left:3px solid ' + typeBadgeColor + ';' : ''}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="padding:2px 8px;border-radius:4px;background:${typeBadgeBg};color:${typeBadgeColor};border:1px solid ${typeBadgeBorder};font-size:10px;font-weight:600;">${typeLabel}</span>
+            ${statusBadge}
+          </div>
+          <h4 style="font-size:14px;font-weight:600;color:#1f2937;margin:0 0 4px;">${item.title}</h4>
+          ${item.description ? `<p style="font-size:12px;color:#6b7280;margin:0 0 8px;line-height:1.4;">${item.description}</p>` : ''}
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:#9ca3af;">
+            <span title="Task">📋 ${item.task_label || 'Task #' + item.task_id}</span>
+            <span title="Phase">📁 Phase ${item.phase_number}: ${item.phase_title || ''}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:#9ca3af;margin-top:4px;">
+            <span title="Forwarded by">👤 ${item.forwarded_by_name || 'Unknown'}</span>
+            <span title="Forwarded on">📅 ${formatDate(item.forwarded_at)}</span>
+            ${item.responded_at ? '<span title="Responded on">✅ ' + formatDate(item.responded_at) + '</span>' : ''}
+          </div>
+          ${actionButtons}
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Global approve/respond handler
+  window.__approveItem = async function(itemId, status) {
+    const token = getToken();
+    const responseNote = status === 'rejected' ? prompt('Reason for rejection (optional):') || '' : '';
+
+    try {
+      const resp = await fetch('/api/forwarded/' + itemId + '/respond', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ status: status, responseNote: responseNote })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Action failed');
+
+      // Show notification
+      const msgs = { approved: 'Item approved successfully', rejected: 'Item rejected', noted: 'Marked as noted' };
+      const notif = document.createElement('div');
+      notif.style.cssText = 'position:fixed;top:16px;right:16px;z-index:99999;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:500;font-family:Inter,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,0.15);background:#059669;color:white;';
+      notif.textContent = msgs[status] || 'Done';
+      document.body.appendChild(notif);
+      setTimeout(() => { notif.style.opacity = '0'; notif.style.transition = 'opacity 0.3s'; setTimeout(() => notif.remove(), 300); }, 3000);
+
+      // Reload items
+      loadForwardedItems();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  function updateBadgeCount(count) {
+    if (approvalsBadge) {
+      const dot = approvalsBadge.querySelector('.approvals-dot');
+      if (dot) {
+        dot.textContent = count;
+        dot.style.display = count > 0 ? 'flex' : 'none';
+      }
+    }
+  }
+
+  function injectApprovalsButton() {
+    if (document.getElementById('approvals-btn')) return;
+    const role = getUserRole();
+    if (!role || !['registrar', 'admin'].includes(role)) return;
+
+    // Find the header bar — look for the user info area
+    const header = document.querySelector('.bg-white.border-b');
+    if (!header) return;
+
+    // Find right side of header (where user info is)
+    const rightSection = header.querySelector('.flex.items-center.space-x-3') || header.querySelector('.flex.items-center.gap-3');
+    if (!rightSection) {
+      // Fallback: append to header
+      const btn = createApprovalsButton();
+      header.style.position = 'relative';
+      btn.style.position = 'absolute';
+      btn.style.right = '200px';
+      btn.style.top = '50%';
+      btn.style.transform = 'translateY(-50%)';
+      header.appendChild(btn);
+      return;
+    }
+
+    const btn = createApprovalsButton();
+    rightSection.insertBefore(btn, rightSection.firstChild);
+  }
+
+  function createApprovalsButton() {
+    const btn = document.createElement('button');
+    btn.id = 'approvals-btn';
+    btn.title = 'View Forwarded Items';
+    btn.style.cssText = 'position:relative;padding:8px 14px;border-radius:10px;border:1px solid #E8792B;background:linear-gradient(135deg,#FFF7ED,#fff);color:#E8792B;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap;box-shadow:0 1px 3px rgba(232,121,43,0.15);';
+    btn.innerHTML = '📋 Approvals <span class="approvals-dot" style="display:none;position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:9px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span>';
+    btn.addEventListener('click', () => togglePanel(!panelVisible));
+    approvalsBadge = btn;
+
+    // Auto-fetch count
+    fetchPendingCount();
+    return btn;
+  }
+
+  async function fetchPendingCount() {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const resp = await fetch('/api/forwarded', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await resp.json();
+      const pending = (data.forwardedItems || []).filter(i => i.status === 'pending').length;
+      updateBadgeCount(pending);
+    } catch {}
+  }
+
+  // Observe for login / role changes
+  const observer = new MutationObserver(() => {
+    const tokenEl = document.getElementById('__app_token');
+    if (tokenEl && tokenEl.value) {
+      injectApprovalsButton();
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Also poll periodically for pending count
+  setInterval(() => {
+    const role = getUserRole();
+    if (role && ['registrar', 'admin'].includes(role)) {
+      fetchPendingCount();
+    }
+  }, 30000);
+})();
+</script>
+
 </body>
 </html>
