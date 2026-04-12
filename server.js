@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3200;
 const JWT_SECRET = process.env.JWT_SECRET || "must-odoo-hr-tracker-secret-2026";
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 const DB_PATH = path.join(__dirname, "db", "tracker.db");
@@ -138,6 +138,11 @@ async function initDb() {
     responded_at    TEXT,
     response_note   TEXT    DEFAULT ''
   )`);
+
+  // Migration: add file attachment columns to forwarded_items
+  try { db.exec("ALTER TABLE forwarded_items ADD COLUMN file_name TEXT DEFAULT NULL"); } catch(e) {}
+  try { db.exec("ALTER TABLE forwarded_items ADD COLUMN file_data TEXT DEFAULT NULL"); } catch(e) {}
+  try { db.exec("ALTER TABLE forwarded_items ADD COLUMN file_type TEXT DEFAULT NULL"); } catch(e) {}
 
   // Migration: ensure org_positions table exists
   db.exec(`CREATE TABLE IF NOT EXISTS org_positions (
@@ -474,15 +479,15 @@ app.post("/api/tasks/:id/forward", authMiddleware, requireRole("admin", "directo
   const task = getP("SELECT * FROM tasks WHERE id = ?", [taskId]);
   if (!task) return res.status(404).json({ error: "Task not found" });
 
-  const { forwardType, title, description } = req.body;
+  const { forwardType, title, description, fileName, fileData, fileType } = req.body;
   if (!forwardType || !title) return res.status(400).json({ error: "Forward type and title required" });
   if (!["approval", "info"].includes(forwardType)) return res.status(400).json({ error: "Invalid forward type" });
 
   const forwardedTo = forwardType === "approval" ? "registrar" : req.body.forwardedTo || "registrar";
 
   const { lastInsertRowid } = runP(
-    "INSERT INTO forwarded_items (task_id, forward_type, title, description, forwarded_by, forwarded_to) VALUES (?, ?, ?, ?, ?, ?)",
-    [taskId, forwardType, title, description || "", req.user.id, forwardedTo]
+    "INSERT INTO forwarded_items (task_id, forward_type, title, description, forwarded_by, forwarded_to, file_name, file_data, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [taskId, forwardType, title, description || "", req.user.id, forwardedTo, fileName || null, fileData || null, fileType || null]
   );
 
   // Record forwarding (don't change task status column due to CHECK constraint)
@@ -499,7 +504,10 @@ app.post("/api/tasks/:id/forward", authMiddleware, requireRole("admin", "directo
 // Get all forwarded items (visible to registrar & admin too)
 app.get("/api/forwarded", authMiddleware, (req, res) => {
   const items = allP(`
-    SELECT fi.*, t.label as task_label, t.category as task_category, 
+    SELECT fi.id, fi.task_id, fi.forward_type, fi.title, fi.description,
+           fi.forwarded_by, fi.forwarded_to, fi.forwarded_at, fi.status,
+           fi.responded_at, fi.response_note, fi.file_name, fi.file_type,
+           t.label as task_label, t.category as task_category, 
            p.title as phase_title, p.phase_number,
            u.display_name as forwarded_by_name
     FROM forwarded_items fi
@@ -519,19 +527,25 @@ app.put("/api/forwarded/:id/respond", authMiddleware, requireRole("admin", "regi
 
   const { status, responseNote } = req.body;
   if (!status) return res.status(400).json({ error: "Status required" });
+  if (!["approved", "noted", "rejected"].includes(status)) return res.status(400).json({ error: "Invalid status. Must be: approved, noted, or rejected" });
 
-  runP("UPDATE forwarded_items SET status = ?, response_note = ?, responded_at = datetime('now') WHERE id = ?",
-    [status, responseNote || "", itemId]);
+  try {
+    runP("UPDATE forwarded_items SET status = ?, response_note = ?, responded_at = datetime('now') WHERE id = ?",
+      [status, responseNote || "", itemId]);
 
-  // If approved, mark the task as completed
-  if (status === "approved") {
-    try {
-      runP("UPDATE tasks SET status = 'completed', completed_date = date('now'), completed_by = 'Registrar (approved)', updated_at = datetime('now') WHERE id = ?", [item.task_id]);
-    } catch(e) { /* status check constraint - ignore */ }
+    // If approved, mark the task as completed
+    if (status === "approved") {
+      try {
+        runP("UPDATE tasks SET status = 'completed', completed_date = date('now'), completed_by = 'Registrar (approved)', updated_at = datetime('now') WHERE id = ?", [item.task_id]);
+      } catch(e) { /* status check constraint - ignore */ }
+    }
+
+    logAudit(req.user.id, "respond_forward", "forwarded_item", itemId, item.status, status);
+    res.json({ forwardedItem: getP("SELECT * FROM forwarded_items WHERE id = ?", [itemId]) });
+  } catch(err) {
+    console.error("Error responding to forwarded item:", err.message);
+    res.status(500).json({ error: "Failed to update item: " + err.message });
   }
-
-  logAudit(req.user.id, "respond_forward", "forwarded_item", itemId, item.status, status);
-  res.json({ forwardedItem: getP("SELECT * FROM forwarded_items WHERE id = ?", [itemId]) });
 });
 
 // Get forwarded items for a specific task
@@ -545,6 +559,18 @@ app.get("/api/tasks/:id/forwards", authMiddleware, (req, res) => {
     ORDER BY fi.forwarded_at DESC
   `, [taskId]);
   res.json({ forwardedItems: items });
+});
+
+// Download file attachment from a forwarded item
+app.get("/api/forwarded/:id/file", authMiddleware, (req, res) => {
+  const itemId = parseInt(req.params.id);
+  const item = getP("SELECT file_name, file_data, file_type FROM forwarded_items WHERE id = ?", [itemId]);
+  if (!item || !item.file_data) return res.status(404).json({ error: "No file attached" });
+  const buffer = Buffer.from(item.file_data, "base64");
+  res.setHeader("Content-Type", item.file_type || "application/octet-stream");
+  res.setHeader("Content-Disposition", "attachment; filename=\"" + (item.file_name || "attachment") + "\"");
+  res.setHeader("Content-Length", buffer.length);
+  res.send(buffer);
 });
 
 /* ══════════════════════════════════════════════════════════

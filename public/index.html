@@ -526,6 +526,11 @@ Error generating stack: `+o.message+`
               <option value="admin">System Administrator</option>
             </select>
           </div>
+          <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Attach File (optional, max 5MB)</label>
+            <input id="fwd-file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg" style="width:100%;font-size:12px;font-family:inherit;box-sizing:border-box;" />
+            <div id="fwd-file-info" style="display:none;margin-top:4px;padding:6px 10px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#065F46;"></div>
+          </div>
           <div id="fwd-error" style="display:none;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:12px;margin-bottom:12px;"></div>
         </div>
         <div style="padding:16px 24px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px;background:#f9fafb;">
@@ -558,6 +563,8 @@ Error generating stack: `+o.message+`
     
     modal.querySelector('#fwd-title').value = '';
     modal.querySelector('#fwd-description').value = '';
+    modal.querySelector('#fwd-file').value = '';
+    modal.querySelector('#fwd-file-info').style.display = 'none';
     errorEl.style.display = 'none';
     
     if (forwardType === 'approval') {
@@ -595,26 +602,37 @@ Error generating stack: `+o.message+`
       newBtn.textContent = 'Forwarding...';
       
       try {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        // Try to get token from the app's state
+        // Get auth token
         let authToken = null;
-        // Look for token in various storage locations
-        for (let i = 0; i < sessionStorage.length; i++) {
-          const key = sessionStorage.key(i);
-          const val = sessionStorage.getItem(key);
-          if (val && val.startsWith('eyJ')) { authToken = val; break; }
-        }
+        const tokenEl = document.getElementById('__app_token');
+        if (tokenEl) authToken = tokenEl.value;
         if (!authToken) {
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            const val = localStorage.getItem(key);
+          for (let i = 0; i < sessionStorage.length; i++) {
+            const val = sessionStorage.getItem(sessionStorage.key(i));
             if (val && val.startsWith('eyJ')) { authToken = val; break; }
           }
         }
-        // Fallback: try to find it in memory via a hidden element we'll create
         if (!authToken) {
-          const tokenEl = document.getElementById('__app_token');
-          if (tokenEl) authToken = tokenEl.value;
+          for (let i = 0; i < localStorage.length; i++) {
+            const val = localStorage.getItem(localStorage.key(i));
+            if (val && val.startsWith('eyJ')) { authToken = val; break; }
+          }
+        }
+        
+        // Read file if attached
+        const fileInput = modal.querySelector('#fwd-file');
+        let fileName = null, fileData = null, fileType = null;
+        if (fileInput.files && fileInput.files[0]) {
+          const file = fileInput.files[0];
+          if (file.size > 5 * 1024 * 1024) throw new Error('File too large (max 5MB)');
+          fileName = file.name;
+          fileType = file.type || 'application/octet-stream';
+          fileData = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]); // base64 part
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
         }
         
         const resp = await fetch('/api/tasks/' + taskId + '/forward', {
@@ -627,7 +645,10 @@ Error generating stack: `+o.message+`
             forwardType: forwardType,
             title: fwdTitle,
             description: fwdDesc,
-            forwardedTo: forwardType === 'info' ? fwdTarget : 'registrar'
+            forwardedTo: forwardType === 'info' ? fwdTarget : 'registrar',
+            fileName: fileName,
+            fileData: fileData,
+            fileType: fileType
           })
         });
         
@@ -973,6 +994,7 @@ Error generating stack: `+o.message+`
             <span title="Forwarded on">📅 ${formatDate(item.forwarded_at)}</span>
             ${item.responded_at ? '<span title="Responded on">✅ ' + formatDate(item.responded_at) + '</span>' : ''}
           </div>
+          ${item.file_name ? '<div style="margin-top:8px;"><button onclick="window.__downloadFile(' + item.id + ',\'' + item.file_name.replace(/'/g, "\\'") + '\')" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#EFF6FF;border:1px solid #93C5FD;color:#1B3A5C;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;">📎 ' + item.file_name + '</button></div>' : ''}
           ${actionButtons}
         </div>
       `;
@@ -980,6 +1002,22 @@ Error generating stack: `+o.message+`
   }
 
   // Global approve/respond handler
+  // Download file attachment with auth
+  window.__downloadFile = async function(itemId, fileName) {
+    const token = getToken();
+    try {
+      const resp = await fetch('/api/forwarded/' + itemId + '/file', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!resp.ok) throw new Error('Download failed');
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName || 'attachment'; a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) { alert('Download failed: ' + err.message); }
+  };
+
   window.__approveItem = async function(itemId, status) {
     const token = getToken();
     const responseNote = status === 'rejected' ? prompt('Reason for rejection (optional):') || '' : '';

@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS forwarded_items (
   forwarded_by    INTEGER NOT NULL REFERENCES users(id),
   forwarded_to    TEXT    NOT NULL,
   forwarded_at    TEXT    DEFAULT (datetime('now')),
-  status          TEXT    NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','noted')),
+  status          TEXT    NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','noted','rejected')),
   responded_at    TEXT,
   response_note   TEXT    DEFAULT ''
 );
