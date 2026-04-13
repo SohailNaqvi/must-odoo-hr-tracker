@@ -530,21 +530,31 @@ app.get("/api/forwarded", authMiddleware, (req, res) => {
            fi.responded_at, fi.response_note, fi.file_name, fi.file_type, fi.due_date, fi.dismissed,
            t.label as task_label, t.category as task_category, 
            p.title as phase_title, p.phase_number,
-           u.display_name as forwarded_by_name
+           u.display_name as forwarded_by_name,
+           ur.display_name as forwarded_to_name, ur.role as forwarded_to_role
     FROM forwarded_items fi
     JOIN tasks t ON fi.task_id = t.id
     JOIN phases p ON t.phase_id = p.id
     JOIN users u ON fi.forwarded_by = u.id
+    LEFT JOIN users ur ON ur.username = fi.forwarded_to
     ORDER BY fi.forwarded_at DESC
   `);
   res.json({ forwardedItems: items });
 });
 
-// Respond to a forwarded item (registrar approves, or marks as noted)
-app.put("/api/forwarded/:id/respond", authMiddleware, requireRole("admin", "registrar"), (req, res) => {
+// Respond to a forwarded item (approval items -> registrar; action items -> named recipient)
+app.put("/api/forwarded/:id/respond", authMiddleware, (req, res) => {
   const itemId = parseInt(req.params.id);
   const item = getP("SELECT * FROM forwarded_items WHERE id = ?", [itemId]);
   if (!item) return res.status(404).json({ error: "Not found" });
+
+  // Permission: admin, OR registrar for approval items, OR the named recipient
+  const isAdmin = req.user.role === 'admin';
+  const isRegistrarApproval = req.user.role === 'registrar' && item.forward_type === 'approval';
+  const isRecipient = item.forwarded_to === req.user.username;
+  if (!isAdmin && !isRegistrarApproval && !isRecipient) {
+    return res.status(403).json({ error: "You are not the recipient of this forwarded item" });
+  }
 
   const { status, responseNote } = req.body;
   if (!status) return res.status(400).json({ error: "Status required" });

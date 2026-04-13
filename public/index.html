@@ -521,10 +521,9 @@ Error generating stack: `+o.message+`
           <div id="fwd-info-target" style="margin-bottom:16px;display:none;">
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Forward to</label>
             <select id="fwd-target" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
-              <option value="registrar">Registrar</option>
-              <option value="vpOps">VP Operations</option>
-              <option value="admin">System Administrator</option>
+              <option value="">Loading users...</option>
             </select>
+            <div style="margin-top:4px;font-size:11px;color:#6b7280;">The recipient will be notified and can respond from their dashboard</div>
           </div>
           <div style="margin-bottom:16px;">
             <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Attach File (optional, max 5MB)</label>
@@ -558,6 +557,57 @@ Error generating stack: `+o.message+`
     const modal = document.getElementById('forward-modal');
     if (modal) modal.style.display = 'none';
   }
+
+  async function populateRecipientDropdown(selectEl) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '<option value="">Loading users...</option>';
+    const token = document.getElementById('__app_token')?.value || '';
+    try {
+      const [orgResp, usersResp] = await Promise.all([
+        fetch('/api/organogram', { headers: { 'Authorization': 'Bearer ' + token } }),
+        fetch('/api/auth/users')
+      ]);
+      const orgData = await orgResp.json();
+      const usersData = await usersResp.json();
+      const allUsers = usersData.users || [];
+      const added = new Set();
+      const options = [];
+      // Walk org tree in depth order to build hierarchical list
+      function walk(nodes, depth) {
+        (nodes || []).forEach(n => {
+          if (n.assigned_username && !added.has(n.assigned_username)) {
+            added.add(n.assigned_username);
+            const indent = '\u00A0\u00A0'.repeat(depth);
+            const label = indent + n.assigned_user_name + ' — ' + n.title;
+            options.push({ value: n.assigned_username, label });
+          } else if (!n.assigned_username) {
+            // Show vacant position as disabled separator
+            const indent = '\u00A0\u00A0'.repeat(depth);
+            options.push({ value: '', label: indent + n.title + ' (vacant)', disabled: true });
+          }
+          walk(n.children, depth + 1);
+        });
+      }
+      walk(orgData.organogram || [], 0);
+      // Append any users not in organogram
+      const extras = allUsers.filter(u => !added.has(u.username));
+      if (extras.length > 0) {
+        options.push({ value: '', label: '── Other users ──', disabled: true });
+        extras.forEach(u => options.push({ value: u.username, label: u.display_name + ' (' + u.role + ')' }));
+      }
+      if (options.length === 0) {
+        selectEl.innerHTML = '<option value="">No users available</option>';
+        return;
+      }
+      selectEl.innerHTML = options.map(o =>
+        '<option value="' + o.value + '"' + (o.disabled ? ' disabled' : '') + '>' + o.label + '</option>'
+      ).join('');
+      // Default: select first non-disabled option
+      for (const o of selectEl.options) { if (!o.disabled && o.value) { selectEl.value = o.value; break; } }
+    } catch (err) {
+      selectEl.innerHTML = '<option value="registrar">Registrar</option><option value="vpops">VP Operations</option><option value="admin">System Administrator</option>';
+    }
+  }
   
   function openForwardModal(taskId, forwardType, taskLabel) {
     const modal = createForwardModal();
@@ -580,10 +630,12 @@ Error generating stack: `+o.message+`
       subtitle.style.color = '#E8792B';
       infoTarget.style.display = 'none';
     } else {
-      title.textContent = 'Forward for Information';
-      subtitle.textContent = 'Share task information with another role';
+      title.textContent = 'Forward for Action';
+      subtitle.textContent = 'Assign this task to any member of the organogram for action';
       subtitle.style.color = '#1B3A5C';
       infoTarget.style.display = 'block';
+      // Populate recipient dropdown from organogram (hierarchical) with user fallback
+      populateRecipientDropdown(modal.querySelector('#fwd-target'));
     }
     
     modal.style.display = 'flex';
@@ -759,7 +811,7 @@ Error generating stack: `+o.message+`
       
       const optInfo = document.createElement('option');
       optInfo.value = '__forward_info';
-      optInfo.textContent = '↗ Forward for Info';
+      optInfo.textContent = '↗ Forward for Action';
       sel.appendChild(optInfo);
 
       if (isAdmin) {
@@ -847,7 +899,7 @@ Error generating stack: `+o.message+`
         noteEl.dataset.fwdBadged = 'true';
         const badge = document.createElement('span');
         badge.style.cssText = 'display:inline-block;padding:1px 6px;border-radius:4px;background:#EFF6FF;color:#1B3A5C;border:1px solid #93C5FD;font-size:10px;font-weight:600;font-style:normal;margin-right:4px;';
-        badge.textContent = '↗ Fwd for Info';
+        badge.textContent = '↗ Fwd for Action';
         noteEl.parentNode.insertBefore(badge, noteEl);
       }
     });
@@ -887,6 +939,13 @@ Error generating stack: `+o.message+`
     if (!tokenEl || !tokenEl.value) return null;
     const decoded = decodeToken(tokenEl.value);
     return decoded ? decoded.id : null;
+  }
+
+  function getUsername() {
+    const tokenEl = document.getElementById('__app_token');
+    if (!tokenEl || !tokenEl.value) return null;
+    const decoded = decodeToken(tokenEl.value);
+    return decoded ? decoded.username : null;
   }
 
   function isOverdue(item) {
@@ -929,7 +988,7 @@ Error generating stack: `+o.message+`
         <div style="padding:12px 24px;border-bottom:1px solid #e5e7eb;display:flex;gap:6px;">
           <button class="approvals-filter active" data-filter="pending" style="padding:6px 14px;border-radius:20px;border:1px solid #E8792B;background:#FFF7ED;color:#E8792B;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Pending</button>
           <button class="approvals-filter" data-filter="all" style="padding:6px 14px;border-radius:20px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">All</button>
-          <button class="approvals-filter" data-filter="info" style="padding:6px 14px;border-radius:20px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Info</button>
+          <button class="approvals-filter" data-filter="info" style="padding:6px 14px;border-radius:20px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Action</button>
         </div>
         <div id="approvals-list" style="flex:1;overflow-y:auto;padding:16px 24px;">
           <div style="text-align:center;padding:40px 0;color:#9ca3af;">Loading forwarded items...</div>
@@ -994,25 +1053,24 @@ Error generating stack: `+o.message+`
       const allItems = data.forwardedItems || [];
       const role = getUserRole();
       const myId = getUserId();
-      // For Director HR: only show items they forwarded
-      cachedItems = (role === 'directorHR') ? allItems.filter(i => i.forwarded_by === myId) : allItems;
+      const myUser = getUsername();
+      // Admin sees all; others see items they sent OR items addressed to them
+      cachedItems = (role === 'admin')
+        ? allItems
+        : allItems.filter(i => i.forwarded_by === myId || i.forwarded_to === myUser);
       const activeItems = cachedItems.filter(i => !i.dismissed);
-      const pendingCount = activeItems.filter(i => i.status === 'pending').length;
-      const rejectedCount = activeItems.filter(i => i.status === 'rejected').length;
+      // Things I need to act on:
+      //  - Items addressed to me that are pending
+      //  - Items I sent that were rejected (I need to re-forward)
+      const incomingPending = activeItems.filter(i => i.forwarded_to === myUser && i.status === 'pending');
+      const myRejected = activeItems.filter(i => i.forwarded_by === myId && i.status === 'rejected');
+      const actionCount = incomingPending.length + myRejected.length;
       const overdueCount = activeItems.filter(i => isOverdue(i)).length;
-      let summary;
-      if (role === 'directorHR') {
-        const action = pendingCount + rejectedCount;
-        summary = action + ' needing action';
-        if (rejectedCount > 0) summary += ' (' + rejectedCount + ' rejected)';
-        if (overdueCount > 0) summary += ' · ' + overdueCount + ' overdue';
-      } else {
-        summary = pendingCount + ' pending';
-        if (overdueCount > 0) summary += ' · ' + overdueCount + ' overdue';
-      }
+      let summary = actionCount + ' needing action';
+      if (myRejected.length > 0) summary += ' (' + myRejected.length + ' rejected)';
+      if (overdueCount > 0) summary += ' · ' + overdueCount + ' overdue';
       document.getElementById('approvals-count').textContent = summary;
-      // Badge: Director HR sees (pending + rejected + overdue); others see pending
-      updateBadgeCount(role === 'directorHR' ? (pendingCount + rejectedCount + overdueCount) : pendingCount);
+      updateBadgeCount(actionCount + overdueCount);
       // Render with active filter
       const activeFilter = approvalsPanel.querySelector('.approvals-filter.active');
       renderItems(activeFilter ? activeFilter.dataset.filter : 'pending');
@@ -1023,17 +1081,16 @@ Error generating stack: `+o.message+`
 
   function renderItems(filter) {
     const listEl = document.getElementById('approvals-list');
-    const role = getUserRole();
+    const myUser = getUsername();
+    const myId = getUserId();
     // Always hide dismissed items
     let items = cachedItems.filter(i => !i.dismissed);
     if (filter === 'pending') {
-      // For Director HR: "Pending" = items needing their action (pending + rejected)
-      // For Registrar/Admin: "Pending" = items awaiting their response
-      if (role === 'directorHR') {
-        items = items.filter(i => i.status === 'pending' || i.status === 'rejected');
-      } else {
-        items = items.filter(i => i.status === 'pending');
-      }
+      // Items needing MY action: pending-and-addressed-to-me OR rejected-and-sent-by-me
+      items = items.filter(i =>
+        (i.forwarded_to === myUser && i.status === 'pending') ||
+        (i.forwarded_by === myId && i.status === 'rejected')
+      );
     }
     else if (filter === 'info') items = items.filter(i => i.forward_type === 'info');
 
@@ -1043,16 +1100,19 @@ Error generating stack: `+o.message+`
     }
 
     const myRole = getUserRole();
-    const canRespond = ['registrar', 'admin'].includes(myRole);
+    const myUser = getUsername();
+    const myId = getUserId();
     listEl.innerHTML = items.map(item => {
       const isApproval = item.forward_type === 'approval';
       const isPending = item.status === 'pending';
       const overdue = isOverdue(item);
       const isRejected = item.status === 'rejected';
+      // Can respond if I'm admin, or registrar on approval items, or the named recipient
+      const canRespond = myRole === 'admin' || (myRole === 'registrar' && isApproval) || (item.forwarded_to === myUser);
       const typeBadgeBg = isApproval ? '#FFF7ED' : '#EFF6FF';
       const typeBadgeColor = isApproval ? '#E8792B' : '#1B3A5C';
       const typeBadgeBorder = isApproval ? '#FDBA74' : '#93C5FD';
-      const typeLabel = isApproval ? 'For Approval' : 'For Info';
+      const typeLabel = isApproval ? 'For Approval' : 'For Action';
 
       let statusBadge = '';
       if (item.status === 'approved') statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#D1FAE5;color:#065F46;font-size:10px;font-weight:600;">Approved</span>';
@@ -1060,7 +1120,7 @@ Error generating stack: `+o.message+`
       else if (item.status === 'rejected') statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#FEE2E2;color:#991B1B;font-size:10px;font-weight:600;">Rejected</span>';
       else statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:600;">Pending</span>';
 
-      const isMine = myRole === 'directorHR' && item.forwarded_by === getUserId();
+      const isMine = item.forwarded_by === myId;
       const canReforward = isRejected && (isMine || myRole === 'admin');
 
       let actionButtons = '';
@@ -1071,7 +1131,8 @@ Error generating stack: `+o.message+`
               <button onclick="window.__approveItem(${item.id}, 'approved')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Approve</button>
               <button onclick="window.__approveItem(${item.id}, 'rejected')" style="flex:1;padding:8px 12px;border:1px solid #dc2626;border-radius:8px;background:#fff;color:#dc2626;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">✗ Reject</button>
             ` : `
-              <button onclick="window.__approveItem(${item.id}, 'noted')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#1B3A5C;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Mark as Noted</button>
+              <button onclick="window.__approveItem(${item.id}, 'noted')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Mark as Done</button>
+              <button onclick="window.__approveItem(${item.id}, 'rejected')" style="flex:1;padding:8px 12px;border:1px solid #dc2626;border-radius:8px;background:#fff;color:#dc2626;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">✗ Decline</button>
             `}
           </div>`;
       } else if (canReforward) {
@@ -1098,8 +1159,9 @@ Error generating stack: `+o.message+`
       }
 
       const cardBorder = isRejected ? 'border:2px solid #dc2626;background:#FEF2F2;' : (overdue ? 'border:2px solid #E8792B;background:#FFF7ED;' : 'border:1px solid #e5e7eb;background:#fff;' + (isPending ? 'border-left:3px solid ' + typeBadgeColor + ';' : ''));
+      const rejecterName = item.forwarded_to_name || item.forwarded_to || 'recipient';
       const alertBanner = isRejected
-        ? '<div style="padding:6px 10px;margin-bottom:8px;background:#dc2626;color:#fff;border-radius:6px;font-size:11px;font-weight:600;">⚠ Rejected by Registrar' + (item.response_note ? ' — "' + item.response_note.replace(/"/g,'&quot;') + '"' : '') + '</div>'
+        ? '<div style="padding:6px 10px;margin-bottom:8px;background:#dc2626;color:#fff;border-radius:6px;font-size:11px;font-weight:600;">⚠ Rejected by ' + rejecterName + (item.response_note ? ' — "' + item.response_note.replace(/"/g,'&quot;') + '"' : '') + '</div>'
         : (overdue ? '<div style="padding:6px 10px;margin-bottom:8px;background:#E8792B;color:#fff;border-radius:6px;font-size:11px;font-weight:600;">⏰ Overdue — due ' + formatDate(item.due_date) + '</div>' : '');
       return `
         <div style="border-radius:12px;padding:16px;margin-bottom:12px;${cardBorder}">
@@ -1115,7 +1177,8 @@ Error generating stack: `+o.message+`
             <span title="Phase">📁 Phase ${item.phase_number}: ${item.phase_title || ''}</span>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:#9ca3af;margin-top:4px;">
-            <span title="Forwarded by">👤 ${item.forwarded_by_name || 'Unknown'}</span>
+            <span title="Forwarded by">👤 From: ${item.forwarded_by_name || 'Unknown'}</span>
+            <span title="Forwarded to">➜ To: ${item.forwarded_to_name || item.forwarded_to || '—'}${item.forwarded_to_role ? ' (' + item.forwarded_to_role + ')' : ''}</span>
             <span title="Forwarded on">📅 ${formatDate(item.forwarded_at)}</span>
             ${item.responded_at ? '<span title="Responded on">✅ ' + formatDate(item.responded_at) + '</span>' : ''}
             ${item.due_date ? '<span title="Due date" style="' + (overdue ? 'color:#dc2626;font-weight:600;' : '') + '">⏱ Due ' + formatDate(item.due_date) + '</span>' : ''}
@@ -1260,7 +1323,7 @@ Error generating stack: `+o.message+`
   function injectApprovalsButton() {
     if (document.getElementById('approvals-btn')) return;
     const role = getUserRole();
-    if (!role || !['registrar', 'admin', 'directorHR'].includes(role)) return;
+    if (!role) return;
 
     // Find the header bar — look for the user info area
     const header = document.querySelector('.bg-white.border-b');
@@ -1287,9 +1350,8 @@ Error generating stack: `+o.message+`
   function createApprovalsButton() {
     const btn = document.createElement('button');
     btn.id = 'approvals-btn';
-    const role = getUserRole();
-    const label = role === 'directorHR' ? '📤 My Forwards' : '📋 Approvals';
-    btn.title = role === 'directorHR' ? 'View your forwarded items and responses' : 'View Forwarded Items';
+    const label = '📋 Tasks';
+    btn.title = 'Items forwarded to you or by you';
     btn.style.cssText = 'position:relative;padding:8px 14px;border-radius:10px;border:1px solid #E8792B;background:linear-gradient(135deg,#FFF7ED,#fff);color:#E8792B;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap;box-shadow:0 1px 3px rgba(232,121,43,0.15);';
     btn.innerHTML = label + ' <span class="approvals-dot" style="display:none;position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:9px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span>';
     btn.addEventListener('click', () => togglePanel(!panelVisible));
@@ -1308,17 +1370,15 @@ Error generating stack: `+o.message+`
       const data = await resp.json();
       const role = getUserRole();
       const myId = getUserId();
-      const items = role === 'directorHR'
-        ? (data.forwardedItems || []).filter(i => i.forwarded_by === myId)
-        : (data.forwardedItems || []);
-      if (role === 'directorHR') {
-        const rejected = items.filter(i => i.status === 'rejected').length;
-        const overdue = items.filter(i => isOverdue(i)).length;
-        updateBadgeCount(rejected + overdue);
-      } else {
-        const pending = items.filter(i => i.status === 'pending').length;
-        updateBadgeCount(pending);
-      }
+      const myUser = getUsername();
+      const items = (role === 'admin')
+        ? (data.forwardedItems || [])
+        : (data.forwardedItems || []).filter(i => i.forwarded_by === myId || i.forwarded_to === myUser);
+      const active = items.filter(i => !i.dismissed);
+      const incomingPending = active.filter(i => i.forwarded_to === myUser && i.status === 'pending').length;
+      const myRejected = active.filter(i => i.forwarded_by === myId && i.status === 'rejected').length;
+      const overdue = active.filter(i => isOverdue(i)).length;
+      updateBadgeCount(incomingPending + myRejected + overdue);
     } catch {}
   }
 
@@ -1334,7 +1394,7 @@ Error generating stack: `+o.message+`
   // Also poll periodically for pending count
   setInterval(() => {
     const role = getUserRole();
-    if (role && ['registrar', 'admin', 'directorHR'].includes(role)) {
+    if (role) {
       fetchPendingCount();
     }
   }, 30000);
