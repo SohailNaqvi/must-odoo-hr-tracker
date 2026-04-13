@@ -148,6 +148,7 @@ async function initDb() {
   try { db.exec("ALTER TABLE forwarded_items ADD COLUMN file_data TEXT DEFAULT NULL"); } catch(e) {}
   try { db.exec("ALTER TABLE forwarded_items ADD COLUMN file_type TEXT DEFAULT NULL"); } catch(e) {}
   try { db.exec("ALTER TABLE forwarded_items ADD COLUMN due_date TEXT DEFAULT NULL"); } catch(e) {}
+  try { db.exec("ALTER TABLE forwarded_items ADD COLUMN dismissed INTEGER DEFAULT 0"); } catch(e) {}
 
   // Migration: ensure org_positions table exists
   db.exec(`CREATE TABLE IF NOT EXISTS org_positions (
@@ -511,7 +512,7 @@ app.get("/api/forwarded", authMiddleware, (req, res) => {
   const items = allP(`
     SELECT fi.id, fi.task_id, fi.forward_type, fi.title, fi.description,
            fi.forwarded_by, fi.forwarded_to, fi.forwarded_at, fi.status,
-           fi.responded_at, fi.response_note, fi.file_name, fi.file_type, fi.due_date,
+           fi.responded_at, fi.response_note, fi.file_name, fi.file_type, fi.due_date, fi.dismissed,
            t.label as task_label, t.category as task_category, 
            p.title as phase_title, p.phase_number,
            u.display_name as forwarded_by_name
@@ -551,6 +552,20 @@ app.put("/api/forwarded/:id/respond", authMiddleware, requireRole("admin", "regi
     console.error("Error responding to forwarded item:", err.message);
     res.status(500).json({ error: "Failed to update item: " + err.message });
   }
+});
+
+// Dismiss a forwarded item (Director HR clearing a rejected notification)
+app.put("/api/forwarded/:id/dismiss", authMiddleware, requireRole("admin", "directorHR"), (req, res) => {
+  const itemId = parseInt(req.params.id);
+  const item = getP("SELECT * FROM forwarded_items WHERE id = ?", [itemId]);
+  if (!item) return res.status(404).json({ error: "Not found" });
+  // Only the forwarder (or admin) can dismiss
+  if (req.user.role !== "admin" && item.forwarded_by !== req.user.id) {
+    return res.status(403).json({ error: "You can only dismiss your own forwarded items" });
+  }
+  runP("UPDATE forwarded_items SET dismissed = 1 WHERE id = ?", [itemId]);
+  logAudit(req.user.id, "dismiss_forward", "forwarded_item", itemId);
+  res.json({ message: "Dismissed" });
 });
 
 // Get forwarded items for a specific task

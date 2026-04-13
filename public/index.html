@@ -889,7 +889,6 @@ Error generating stack: `+o.message+`
         <div style="padding:12px 24px;border-bottom:1px solid #e5e7eb;display:flex;gap:6px;">
           <button class="approvals-filter active" data-filter="pending" style="padding:6px 14px;border-radius:20px;border:1px solid #E8792B;background:#FFF7ED;color:#E8792B;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Pending</button>
           <button class="approvals-filter" data-filter="all" style="padding:6px 14px;border-radius:20px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">All</button>
-          <button class="approvals-filter" data-filter="approval" style="padding:6px 14px;border-radius:20px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Approvals</button>
           <button class="approvals-filter" data-filter="info" style="padding:6px 14px;border-radius:20px;border:1px solid #d1d5db;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">Info</button>
         </div>
         <div id="approvals-list" style="flex:1;overflow-y:auto;padding:16px 24px;">
@@ -957,15 +956,23 @@ Error generating stack: `+o.message+`
       const myId = getUserId();
       // For Director HR: only show items they forwarded
       cachedItems = (role === 'directorHR') ? allItems.filter(i => i.forwarded_by === myId) : allItems;
-      const pendingCount = cachedItems.filter(i => i.status === 'pending').length;
-      const rejectedCount = cachedItems.filter(i => i.status === 'rejected').length;
-      const overdueCount = cachedItems.filter(i => isOverdue(i)).length;
-      let summary = pendingCount + ' pending';
-      if (role === 'directorHR' && rejectedCount > 0) summary += ' · ' + rejectedCount + ' rejected';
-      if (overdueCount > 0) summary += ' · ' + overdueCount + ' overdue';
+      const activeItems = cachedItems.filter(i => !i.dismissed);
+      const pendingCount = activeItems.filter(i => i.status === 'pending').length;
+      const rejectedCount = activeItems.filter(i => i.status === 'rejected').length;
+      const overdueCount = activeItems.filter(i => isOverdue(i)).length;
+      let summary;
+      if (role === 'directorHR') {
+        const action = pendingCount + rejectedCount;
+        summary = action + ' needing action';
+        if (rejectedCount > 0) summary += ' (' + rejectedCount + ' rejected)';
+        if (overdueCount > 0) summary += ' · ' + overdueCount + ' overdue';
+      } else {
+        summary = pendingCount + ' pending';
+        if (overdueCount > 0) summary += ' · ' + overdueCount + ' overdue';
+      }
       document.getElementById('approvals-count').textContent = summary;
-      // Badge: Director HR sees rejected count (red attention); others see pending
-      updateBadgeCount(role === 'directorHR' ? (rejectedCount + overdueCount) : pendingCount);
+      // Badge: Director HR sees (pending + rejected + overdue); others see pending
+      updateBadgeCount(role === 'directorHR' ? (pendingCount + rejectedCount + overdueCount) : pendingCount);
       // Render with active filter
       const activeFilter = approvalsPanel.querySelector('.approvals-filter.active');
       renderItems(activeFilter ? activeFilter.dataset.filter : 'pending');
@@ -976,9 +983,18 @@ Error generating stack: `+o.message+`
 
   function renderItems(filter) {
     const listEl = document.getElementById('approvals-list');
-    let items = cachedItems;
-    if (filter === 'pending') items = items.filter(i => i.status === 'pending');
-    else if (filter === 'approval') items = items.filter(i => i.forward_type === 'approval');
+    const role = getUserRole();
+    // Always hide dismissed items
+    let items = cachedItems.filter(i => !i.dismissed);
+    if (filter === 'pending') {
+      // For Director HR: "Pending" = items needing their action (pending + rejected)
+      // For Registrar/Admin: "Pending" = items awaiting their response
+      if (role === 'directorHR') {
+        items = items.filter(i => i.status === 'pending' || i.status === 'rejected');
+      } else {
+        items = items.filter(i => i.status === 'pending');
+      }
+    }
     else if (filter === 'info') items = items.filter(i => i.forward_type === 'info');
 
     if (items.length === 0) {
@@ -1004,20 +1020,44 @@ Error generating stack: `+o.message+`
       else if (item.status === 'rejected') statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#FEE2E2;color:#991B1B;font-size:10px;font-weight:600;">Rejected</span>';
       else statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:600;">Pending</span>';
 
-      const actionButtons = (isPending && canRespond) ? `
-        <div style="display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6;">
-          ${isApproval ? `
-            <button onclick="window.__approveItem(${item.id}, 'approved')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Approve</button>
-            <button onclick="window.__approveItem(${item.id}, 'rejected')" style="flex:1;padding:8px 12px;border:1px solid #dc2626;border-radius:8px;background:#fff;color:#dc2626;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">✗ Reject</button>
-          ` : `
-            <button onclick="window.__approveItem(${item.id}, 'noted')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#1B3A5C;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Mark as Noted</button>
-          `}
-        </div>
-      ` : (item.response_note ? `<div style="margin-top:8px;padding:8px 10px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#065F46;"><strong>Response:</strong> ${item.response_note}</div>` : '');
+      const isMine = myRole === 'directorHR' && item.forwarded_by === getUserId();
+      const canReforward = isRejected && (isMine || myRole === 'admin');
+
+      let actionButtons = '';
+      if (isPending && canRespond) {
+        actionButtons = `
+          <div style="display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6;">
+            ${isApproval ? `
+              <button onclick="window.__approveItem(${item.id}, 'approved')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Approve</button>
+              <button onclick="window.__approveItem(${item.id}, 'rejected')" style="flex:1;padding:8px 12px;border:1px solid #dc2626;border-radius:8px;background:#fff;color:#dc2626;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">✗ Reject</button>
+            ` : `
+              <button onclick="window.__approveItem(${item.id}, 'noted')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#1B3A5C;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Mark as Noted</button>
+            `}
+          </div>`;
+      } else if (canReforward) {
+        actionButtons = `
+          <div style="display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6;">
+            <button onclick="window.__reforwardItem(${item.id}, ${item.task_id})" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#E8792B;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">↻ Re-forward with update</button>
+            <button onclick="window.__dismissItem(${item.id})" style="flex:1;padding:8px 12px;border:1px solid #6b7280;border-radius:8px;background:#fff;color:#6b7280;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">✕ Dismiss</button>
+          </div>
+          <div id="reforward-form-${item.id}" style="display:none;margin-top:10px;padding:12px;border:1px solid #E8792B;border-radius:8px;background:#FFF7ED;">
+            <div style="font-size:11px;font-weight:600;color:#E8792B;margin-bottom:8px;">Re-forward with updated information</div>
+            <textarea id="rf-desc-${item.id}" rows="3" placeholder="Updated description / response to the rejection..." style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:6px;resize:none;"></textarea>
+            <label style="display:block;font-size:11px;color:#374151;margin-bottom:4px;">New Due Date</label>
+            <input id="rf-due-${item.id}" type="date" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;" />
+            <div id="rf-err-${item.id}" style="display:none;padding:4px 8px;background:#fef2f2;color:#dc2626;border-radius:4px;font-size:11px;margin-bottom:6px;"></div>
+            <div style="display:flex;gap:6px;">
+              <button onclick="window.__submitReforward(${item.id}, ${item.task_id}, '${(item.title || '').replace(/'/g, "\\'")}', '${item.forward_type}')" style="flex:1;padding:6px;border:none;border-radius:6px;background:#E8792B;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Re-forward</button>
+              <button onclick="document.getElementById('reforward-form-${item.id}').style.display='none'" style="padding:6px 12px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#6b7280;font-size:12px;cursor:pointer;font-family:inherit;">Cancel</button>
+            </div>
+          </div>`;
+      } else if (item.response_note) {
+        actionButtons = `<div style="margin-top:8px;padding:8px 10px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#065F46;"><strong>Response:</strong> ${item.response_note}</div>`;
+      }
 
       const cardBorder = isRejected ? 'border:2px solid #dc2626;background:#FEF2F2;' : (overdue ? 'border:2px solid #E8792B;background:#FFF7ED;' : 'border:1px solid #e5e7eb;background:#fff;' + (isPending ? 'border-left:3px solid ' + typeBadgeColor + ';' : ''));
       const alertBanner = isRejected
-        ? '<div style="padding:6px 10px;margin-bottom:8px;background:#dc2626;color:#fff;border-radius:6px;font-size:11px;font-weight:600;">⚠ Rejected by Registrar — requires your attention</div>'
+        ? '<div style="padding:6px 10px;margin-bottom:8px;background:#dc2626;color:#fff;border-radius:6px;font-size:11px;font-weight:600;">⚠ Rejected by Registrar' + (item.response_note ? ' — "' + item.response_note.replace(/"/g,'&quot;') + '"' : '') + '</div>'
         : (overdue ? '<div style="padding:6px 10px;margin-bottom:8px;background:#E8792B;color:#fff;border-radius:6px;font-size:11px;font-weight:600;">⏰ Overdue — due ' + formatDate(item.due_date) + '</div>' : '');
       return `
         <div style="border-radius:12px;padding:16px;margin-bottom:12px;${cardBorder}">
@@ -1060,6 +1100,62 @@ Error generating stack: `+o.message+`
       a.href = url; a.download = fileName || 'attachment'; a.click();
       URL.revokeObjectURL(url);
     } catch (err) { alert('Download failed: ' + err.message); }
+  };
+
+  window.__reforwardItem = function(itemId, taskId) {
+    const form = document.getElementById('reforward-form-' + itemId);
+    if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  };
+
+  window.__dismissItem = async function(itemId) {
+    if (!confirm('Dismiss this rejected item? It will be removed from your pending list.')) return;
+    const token = getToken();
+    try {
+      const resp = await fetch('/api/forwarded/' + itemId + '/dismiss', {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Dismiss failed');
+      loadForwardedItems();
+    } catch (err) { alert('Error: ' + err.message); }
+  };
+
+  window.__submitReforward = async function(itemId, taskId, origTitle, forwardType) {
+    const token = getToken();
+    const desc = document.getElementById('rf-desc-' + itemId).value.trim();
+    const due = document.getElementById('rf-due-' + itemId).value;
+    const errEl = document.getElementById('rf-err-' + itemId);
+    if (!desc) {
+      errEl.textContent = 'Please provide updated information';
+      errEl.style.display = 'block';
+      return;
+    }
+    try {
+      // Create new forwarded item
+      const resp = await fetch('/api/tasks/' + taskId + '/forward', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({
+          forwardType: forwardType || 'approval',
+          title: origTitle + ' (Re-submitted)',
+          description: desc,
+          forwardedTo: 'registrar',
+          dueDate: due || null
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Re-forward failed');
+      // Dismiss the old rejected item
+      await fetch('/api/forwarded/' + itemId + '/dismiss', {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      loadForwardedItems();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    }
   };
 
   window.__approveItem = async function(itemId, status) {
