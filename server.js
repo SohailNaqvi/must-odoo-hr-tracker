@@ -13,6 +13,86 @@ const path     = require("path");
 const initSqlJs = require("sql.js");
 const fs       = require("fs");
 
+/* ══════════════════════════════════════════════════════════
+   POSTGRES SNAPSHOT STORAGE (optional)
+   If DATABASE_URL is set, the sql.js database blob is loaded
+   from / saved to a single row in Postgres (table: db_snapshot).
+   This gives Render-backed durability + automatic daily backups
+   while keeping every existing query 100% unchanged.
+   Writes are debounced and best-effort; a local filesystem copy
+   is still maintained as a fast fallback.
+   ══════════════════════════════════════════════════════════ */
+const USE_PG = !!process.env.DATABASE_URL;
+let pgPool = null;
+if (USE_PG) {
+  const { Pool } = require("pg");
+  pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    // Render managed PG requires SSL; allow self-signed
+    ssl: { rejectUnauthorized: false }
+  });
+  pgPool.on("error", err => console.error("PG pool error:", err));
+}
+async function pgEnsureSchema() {
+  if (!USE_PG) return;
+  await pgPool.query(`CREATE TABLE IF NOT EXISTS db_snapshot (
+    id          INT PRIMARY KEY DEFAULT 1,
+    data        BYTEA NOT NULL,
+    byte_size   INT,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT db_snapshot_single_row CHECK (id = 1)
+  )`);
+}
+async function pgLoadSnapshot() {
+  if (!USE_PG) return null;
+  const r = await pgPool.query("SELECT data, byte_size, updated_at FROM db_snapshot WHERE id = 1");
+  if (r.rows.length === 0) return null;
+  return r.rows[0];
+}
+async function pgWriteSnapshot(buf) {
+  if (!USE_PG) return;
+  await pgPool.query(
+    `INSERT INTO db_snapshot (id, data, byte_size, updated_at)
+     VALUES (1, $1, $2, NOW())
+     ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, byte_size = EXCLUDED.byte_size, updated_at = NOW()`,
+    [buf, buf.length]
+  );
+}
+// Debounced async flush — coalesces rapid writes to ~1/sec
+let pgFlushTimer = null;
+let pgFlushInFlight = false;
+let pgFlushQueued  = false;
+async function flushToPg() {
+  if (!USE_PG || !db) return;
+  if (pgFlushInFlight) { pgFlushQueued = true; return; }
+  pgFlushInFlight = true;
+  try {
+    const buf = Buffer.from(db.export());
+    await pgWriteSnapshot(buf);
+  } catch (e) {
+    console.error("⚠️ PG snapshot write failed:", e.message);
+  } finally {
+    pgFlushInFlight = false;
+    if (pgFlushQueued) { pgFlushQueued = false; scheduleFlush(); }
+  }
+}
+function scheduleFlush() {
+  if (!USE_PG) return;
+  if (pgFlushTimer) return;
+  pgFlushTimer = setTimeout(() => { pgFlushTimer = null; flushToPg(); }, 800);
+}
+// Flush any pending writes on shutdown so nothing is lost
+async function gracefulShutdown(signal) {
+  console.log(`\n🔻 ${signal} received — flushing DB to Postgres before exit...`);
+  if (pgFlushTimer) { clearTimeout(pgFlushTimer); pgFlushTimer = null; }
+  try { await flushToPg(); console.log("✅ Final snapshot flushed."); }
+  catch (e) { console.error("❌ Final flush failed:", e.message); }
+  try { if (pgPool) await pgPool.end(); } catch {}
+  process.exit(0);
+}
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT",  () => gracefulShutdown("SIGINT"));
+
 const app  = express();
 const PORT = process.env.PORT || 3200;
 const JWT_SECRET = process.env.JWT_SECRET || "must-odoo-hr-tracker-secret-2026";
@@ -30,9 +110,10 @@ console.log("══════════════════════�
 console.log("📁 DB path      :", DB_PATH);
 console.log("📁 DB_DIR env   :", process.env.DB_DIR ? "SET (" + process.env.DB_DIR + ") — persistent disk expected" : "NOT SET — using local ./db (NOT persistent on Render!)");
 console.log("📁 DB existed?  :", DB_EXISTED_AT_STARTUP ? "YES — data preserved" : "NO — fresh DB will be seeded with defaults");
-if (!process.env.DB_DIR) {
-  console.log("⚠️  WARNING: DB_DIR is not set. On Render, the DB will be wiped on every redeploy.");
-  console.log("⚠️  Fix: Add a Persistent Disk at /var/data and set env var DB_DIR=/var/data in Render dashboard.");
+console.log("🐘 DATABASE_URL :", process.env.DATABASE_URL ? "SET — Postgres will be used for durable snapshot storage" : "NOT SET — using filesystem only (ephemeral on Render without a disk)");
+if (!process.env.DATABASE_URL && !process.env.DB_DIR) {
+  console.log("⚠️  WARNING: neither DATABASE_URL nor DB_DIR is set. On Render, data will be wiped on every redeploy.");
+  console.log("⚠️  Recommended fix: attach a Render Postgres database (sets DATABASE_URL automatically).");
 }
 console.log("══════════════════════════════════════════════════════════");
 let db; // sql.js database instance
@@ -42,7 +123,10 @@ let db; // sql.js database instance
    ══════════════════════════════════════════════════════════ */
 function saveDb() {
   const data = db.export();
-  fs.writeFileSync(DB_PATH, Buffer.from(data));
+  // Always keep a local filesystem copy (fast fallback + local dev)
+  try { fs.writeFileSync(DB_PATH, Buffer.from(data)); } catch (e) { console.error("FS write failed:", e.message); }
+  // If Postgres is configured, schedule a debounced durable flush
+  if (USE_PG) scheduleFlush();
 }
 
 // Run a statement, return { changes, lastInsertRowid }
@@ -125,11 +209,31 @@ function runP(sql, params = []) {
 async function initDb() {
   const SQL = await initSqlJs();
 
-  if (fs.existsSync(DB_PATH)) {
-    const buf = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buf);
-  } else {
-    db = new SQL.Database();
+  // Prefer the Postgres-backed snapshot when available — this is the durable source of truth
+  let loadedFromPg = false;
+  if (USE_PG) {
+    try {
+      await pgEnsureSchema();
+      const snap = await pgLoadSnapshot();
+      if (snap && snap.data) {
+        db = new SQL.Database(new Uint8Array(snap.data));
+        loadedFromPg = true;
+        console.log(`🐘 Loaded DB snapshot from Postgres (${snap.byte_size} bytes, updated ${snap.updated_at})`);
+      } else {
+        console.log("🐘 Postgres connected — no snapshot yet; will create one on first write");
+      }
+    } catch (e) {
+      console.error("⚠️  Failed to load from Postgres, falling back to filesystem:", e.message);
+    }
+  }
+
+  if (!loadedFromPg) {
+    if (fs.existsSync(DB_PATH)) {
+      const buf = fs.readFileSync(DB_PATH);
+      db = new SQL.Database(buf);
+    } else {
+      db = new SQL.Database();
+    }
   }
 
   // Run schema
@@ -774,7 +878,19 @@ app.get("/api/audit", authMiddleware, requireRole("admin"), (req, res) => {
 });
 
 // Health / diagnostics — shows DB persistence status
-app.get("/api/health", (req, res) => {
+app.get("/api/health", async (req, res) => {
+  let pgInfo = { enabled: USE_PG };
+  if (USE_PG) {
+    try {
+      const r = await pgPool.query("SELECT byte_size, updated_at FROM db_snapshot WHERE id = 1");
+      pgInfo.hasSnapshot = r.rows.length > 0;
+      if (r.rows.length > 0) {
+        pgInfo.byteSize   = r.rows[0].byte_size;
+        pgInfo.updatedAt  = r.rows[0].updated_at;
+      }
+    } catch (e) { pgInfo.error = e.message; }
+  }
+  const persistent = USE_PG || !!process.env.DB_DIR;
   res.json({
     status: "ok",
     db: {
@@ -782,8 +898,9 @@ app.get("/api/health", (req, res) => {
       dbDirEnvSet: !!process.env.DB_DIR,
       dbDir: DB_DIR,
       existedAtStartup: DB_EXISTED_AT_STARTUP,
-      persistent: !!process.env.DB_DIR,
-      warning: !process.env.DB_DIR ? "DB_DIR not set — data will be wiped on Render redeploy. Add a Persistent Disk at /var/data and set DB_DIR=/var/data." : null
+      postgres: pgInfo,
+      persistent,
+      warning: !persistent ? "Neither DATABASE_URL nor DB_DIR is set — data will be wiped on Render redeploy. Attach a Render Postgres database." : null
     },
     uptime: process.uptime()
   });
