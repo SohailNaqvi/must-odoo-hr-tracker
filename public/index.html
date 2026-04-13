@@ -948,6 +948,17 @@ Error generating stack: `+o.message+`
     return decoded ? decoded.username : null;
   }
 
+  // Matches forwarded_to liberally: username OR role (case-insensitive)
+  // Handles legacy/camelCase values like "vpOps" vs "vpops", and role-based routing
+  function isAddressedToMe(item) {
+    if (!item || !item.forwarded_to) return false;
+    const ft = String(item.forwarded_to).toLowerCase().trim();
+    const user = (getUsername() || '').toLowerCase().trim();
+    const role = (getUserRole() || '').toLowerCase().trim();
+    if (!ft) return false;
+    return ft === user || ft === role;
+  }
+
   function isOverdue(item) {
     if (!item.due_date) return false;
     if (item.status !== 'pending') return false;
@@ -1057,12 +1068,12 @@ Error generating stack: `+o.message+`
       // Admin sees all; others see items they sent OR items addressed to them
       cachedItems = (role === 'admin')
         ? allItems
-        : allItems.filter(i => i.forwarded_by === myId || i.forwarded_to === myUser);
+        : allItems.filter(i => i.forwarded_by === myId || isAddressedToMe(i));
       const activeItems = cachedItems.filter(i => !i.dismissed);
       // Things I need to act on:
       //  - Items addressed to me that are pending
       //  - Items I sent that were rejected (I need to re-forward)
-      const incomingPending = activeItems.filter(i => i.forwarded_to === myUser && i.status === 'pending');
+      const incomingPending = activeItems.filter(i => isAddressedToMe(i) && i.status === 'pending');
       const myRejected = activeItems.filter(i => i.forwarded_by === myId && i.status === 'rejected');
       const actionCount = incomingPending.length + myRejected.length;
       const overdueCount = activeItems.filter(i => isOverdue(i)).length;
@@ -1088,7 +1099,7 @@ Error generating stack: `+o.message+`
     if (filter === 'pending') {
       // Items needing MY action: pending-and-addressed-to-me OR rejected-and-sent-by-me
       items = items.filter(i =>
-        (i.forwarded_to === myUser && i.status === 'pending') ||
+        (isAddressedToMe(i) && i.status === 'pending') ||
         (i.forwarded_by === myId && i.status === 'rejected')
       );
     }
@@ -1108,7 +1119,7 @@ Error generating stack: `+o.message+`
       const overdue = isOverdue(item);
       const isRejected = item.status === 'rejected';
       // Can respond if I'm admin, or registrar on approval items, or the named recipient
-      const canRespond = myRole === 'admin' || (myRole === 'registrar' && isApproval) || (item.forwarded_to === myUser);
+      const canRespond = myRole === 'admin' || (myRole === 'registrar' && isApproval) || isAddressedToMe(item);
       const typeBadgeBg = isApproval ? '#FFF7ED' : '#EFF6FF';
       const typeBadgeColor = isApproval ? '#E8792B' : '#1B3A5C';
       const typeBadgeBorder = isApproval ? '#FDBA74' : '#93C5FD';
@@ -1373,9 +1384,9 @@ Error generating stack: `+o.message+`
       const myUser = getUsername();
       const items = (role === 'admin')
         ? (data.forwardedItems || [])
-        : (data.forwardedItems || []).filter(i => i.forwarded_by === myId || i.forwarded_to === myUser);
+        : (data.forwardedItems || []).filter(i => i.forwarded_by === myId || isAddressedToMe(i));
       const active = items.filter(i => !i.dismissed);
-      const incomingPending = active.filter(i => i.forwarded_to === myUser && i.status === 'pending').length;
+      const incomingPending = active.filter(i => isAddressedToMe(i) && i.status === 'pending').length;
       const myRejected = active.filter(i => i.forwarded_by === myId && i.status === 'rejected').length;
       const overdue = active.filter(i => isOverdue(i)).length;
       updateBadgeCount(incomingPending + myRejected + overdue);

@@ -25,7 +25,16 @@ app.use(express.static(path.join(__dirname, "public")));
 const DB_DIR = process.env.DB_DIR || path.join(__dirname, "db");
 if (!fs.existsSync(DB_DIR)) { try { fs.mkdirSync(DB_DIR, { recursive: true }); } catch(e) {} }
 const DB_PATH = path.join(DB_DIR, "tracker.db");
-console.log("📁 DB path:", DB_PATH);
+const DB_EXISTED_AT_STARTUP = fs.existsSync(DB_PATH);
+console.log("══════════════════════════════════════════════════════════");
+console.log("📁 DB path      :", DB_PATH);
+console.log("📁 DB_DIR env   :", process.env.DB_DIR ? "SET (" + process.env.DB_DIR + ") — persistent disk expected" : "NOT SET — using local ./db (NOT persistent on Render!)");
+console.log("📁 DB existed?  :", DB_EXISTED_AT_STARTUP ? "YES — data preserved" : "NO — fresh DB will be seeded with defaults");
+if (!process.env.DB_DIR) {
+  console.log("⚠️  WARNING: DB_DIR is not set. On Render, the DB will be wiped on every redeploy.");
+  console.log("⚠️  Fix: Add a Persistent Disk at /var/data and set env var DB_DIR=/var/data in Render dashboard.");
+}
+console.log("══════════════════════════════════════════════════════════");
 let db; // sql.js database instance
 
 /* ══════════════════════════════════════════════════════════
@@ -186,6 +195,22 @@ async function initDb() {
   if (!orgCnt || orgCnt.cnt === 0) {
     seedOrgStructure();
   }
+
+  // Migration: ensure default users are linked to correct positions on existing DBs
+  try {
+    const ensureAssignment = (title, username) => {
+      const pos = getP("SELECT id, user_id FROM org_positions WHERE title = ?", [title]);
+      const user = getP("SELECT id FROM users WHERE username = ?", [username]);
+      if (pos && user && !pos.user_id) {
+        runP("UPDATE org_positions SET user_id = ? WHERE id = ?", [user.id, pos.id]);
+        console.log("🔧 Linked", username, "→", title);
+      }
+    };
+    ensureAssignment("VP Operations", "vpops");
+    ensureAssignment("Director HR", "nasra.naqvi");
+    ensureAssignment("Registrar", "registrar");
+    ensureAssignment("Chancellor", "admin");
+  } catch (e) { console.error("Org assignment migration failed:", e.message); }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -548,10 +573,14 @@ app.put("/api/forwarded/:id/respond", authMiddleware, (req, res) => {
   const item = getP("SELECT * FROM forwarded_items WHERE id = ?", [itemId]);
   if (!item) return res.status(404).json({ error: "Not found" });
 
-  // Permission: admin, OR registrar for approval items, OR the named recipient
+  // Permission: admin, OR the named recipient (match by username OR role, case-insensitive)
+  // This handles both new (username) and legacy (role string like "vpOps") forwarded_to values
+  const ft = (item.forwarded_to || '').toLowerCase();
+  const myUser = (req.user.username || '').toLowerCase();
+  const myRole = (req.user.role || '').toLowerCase();
   const isAdmin = req.user.role === 'admin';
   const isRegistrarApproval = req.user.role === 'registrar' && item.forward_type === 'approval';
-  const isRecipient = item.forwarded_to === req.user.username;
+  const isRecipient = ft === myUser || ft === myRole;
   if (!isAdmin && !isRegistrarApproval && !isRecipient) {
     return res.status(403).json({ error: "You are not the recipient of this forwarded item" });
   }
@@ -742,6 +771,22 @@ app.get("/api/stats", authMiddleware, (req, res) => {
 app.get("/api/audit", authMiddleware, requireRole("admin"), (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
   res.json({ logs: allP("SELECT al.*, u.display_name as user_name FROM audit_log al LEFT JOIN users u ON u.id = al.user_id ORDER BY al.created_at DESC LIMIT ?", [limit]) });
+});
+
+// Health / diagnostics — shows DB persistence status
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    db: {
+      path: DB_PATH,
+      dbDirEnvSet: !!process.env.DB_DIR,
+      dbDir: DB_DIR,
+      existedAtStartup: DB_EXISTED_AT_STARTUP,
+      persistent: !!process.env.DB_DIR,
+      warning: !process.env.DB_DIR ? "DB_DIR not set — data will be wiped on Render redeploy. Add a Persistent Disk at /var/data and set DB_DIR=/var/data." : null
+    },
+    uptime: process.uptime()
+  });
 });
 
 /* ═══ SPA fallback ═══ */
