@@ -475,6 +475,21 @@ app.put("/api/tasks/:id", authMiddleware, requireRole("admin", "directorHR"), (r
   res.json({ task: getP("SELECT * FROM tasks WHERE id = ?", [taskId]) });
 });
 
+// Admin: Reset a task — clears status, completion data, notes, deliverable, and all forwarded items
+app.post("/api/tasks/:id/reset", authMiddleware, requireRole("admin"), (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const task = getP("SELECT * FROM tasks WHERE id = ?", [taskId]);
+  if (!task) return res.status(404).json({ error: "Task not found" });
+  try {
+    runP("DELETE FROM forwarded_items WHERE task_id = ?", [taskId]);
+    runP("UPDATE tasks SET status = 'pending', completed_date = NULL, completed_by = NULL, note = '', deliverable = '', updated_at = datetime('now') WHERE id = ?", [taskId]);
+    logAudit(req.user.id, "reset_task", "task", taskId, task.status, "pending");
+    res.json({ message: "Task reset to pending", task: getP("SELECT * FROM tasks WHERE id = ?", [taskId]) });
+  } catch (err) {
+    res.status(500).json({ error: "Reset failed: " + err.message });
+  }
+});
+
 /* ══════════════════════════════════════════════════════════
    TASK FORWARDING (Director HR)
    ══════════════════════════════════════════════════════════ */

@@ -738,7 +738,14 @@ Error generating stack: `+o.message+`
       if (!options.includes('pending') || !options.includes('completed')) return;
       
       sel.dataset.forwardInjected = 'true';
-      
+
+      // Detect admin role from JWT to enable reset option
+      let isAdmin = false;
+      try {
+        const tok = document.getElementById('__app_token')?.value;
+        if (tok) isAdmin = JSON.parse(atob(tok.split('.')[1])).role === 'admin';
+      } catch {}
+
       // Add separator and forward options to the existing dropdown
       const sep = document.createElement('option');
       sep.disabled = true;
@@ -754,12 +761,45 @@ Error generating stack: `+o.message+`
       optInfo.value = '__forward_info';
       optInfo.textContent = '↗ Forward for Info';
       sel.appendChild(optInfo);
+
+      if (isAdmin) {
+        const optReset = document.createElement('option');
+        optReset.value = '__reset_task';
+        optReset.textContent = '🔄 Reset Task (Admin)';
+        sel.appendChild(optReset);
+      }
       
       // Store original value for reverting after forward selection
       let originalValue = sel.value;
       
       sel.addEventListener('change', (e) => {
         const val = sel.value;
+        if (val === '__reset_task') {
+          sel.value = originalValue;
+          const subRow = sel.closest('[class*="rounded-lg"][class*="border"]');
+          const taskLabel = subRow ? (subRow.querySelector('.text-sm.text-gray-800') || subRow.querySelector('[class*="text-sm"][class*="text-gray"]'))?.textContent?.trim() || '' : '';
+          if (!confirm('Reset "' + taskLabel + '" to pending?\n\nThis will:\n• Clear status, completion date, notes, and deliverable\n• Delete ALL forwarded items (approvals, info requests)\n\nThis cannot be undone.')) return;
+          const token = document.getElementById('__app_token')?.value || '';
+          fetch('/api/roadmap', { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(r => r.json())
+            .then(data => {
+              let foundId = null;
+              (data.roadmap || []).forEach(phase => {
+                (phase.tasks || []).forEach(task => { if (task.label.trim() === taskLabel) foundId = task.id; });
+              });
+              if (!foundId) { showForwardNotification('Could not identify task', 'error'); return; }
+              return fetch('/api/tasks/' + foundId + '/reset', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } })
+                .then(r => r.json())
+                .then(d => {
+                  if (d.error) throw new Error(d.error);
+                  showForwardNotification('Task reset to pending', 'success');
+                  const refreshBtn = document.querySelector('button[title="Refresh data"]');
+                  if (refreshBtn) refreshBtn.click();
+                });
+            })
+            .catch(err => showForwardNotification('Reset failed: ' + err.message, 'error'));
+          return;
+        }
         if (val === '__forward_approval' || val === '__forward_info') {
           // Revert dropdown to original status (forward doesn't change status)
           sel.value = originalValue;
@@ -1045,6 +1085,8 @@ Error generating stack: `+o.message+`
             <textarea id="rf-desc-${item.id}" rows="3" placeholder="Updated description / response to the rejection..." style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:6px;resize:none;"></textarea>
             <label style="display:block;font-size:11px;color:#374151;margin-bottom:4px;">New Due Date</label>
             <input id="rf-due-${item.id}" type="date" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;" />
+            <label style="display:block;font-size:11px;color:#374151;margin-bottom:4px;">Attach New Document (optional, max 5MB)</label>
+            <input id="rf-file-${item.id}" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg" style="width:100%;font-size:11px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;" />
             <div id="rf-err-${item.id}" style="display:none;padding:4px 8px;background:#fef2f2;color:#dc2626;border-radius:4px;font-size:11px;margin-bottom:6px;"></div>
             <div style="display:flex;gap:6px;">
               <button onclick="window.__submitReforward(${item.id}, ${item.task_id}, '${(item.title || '').replace(/'/g, "\\'")}', '${item.forward_type}')" style="flex:1;padding:6px;border:none;border-radius:6px;background:#E8792B;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Re-forward</button>
@@ -1125,6 +1167,7 @@ Error generating stack: `+o.message+`
     const token = getToken();
     const desc = document.getElementById('rf-desc-' + itemId).value.trim();
     const due = document.getElementById('rf-due-' + itemId).value;
+    const fileInput = document.getElementById('rf-file-' + itemId);
     const errEl = document.getElementById('rf-err-' + itemId);
     if (!desc) {
       errEl.textContent = 'Please provide updated information';
@@ -1132,6 +1175,20 @@ Error generating stack: `+o.message+`
       return;
     }
     try {
+      // Read file if attached
+      let fileName = null, fileData = null, fileType = null;
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        const file = fileInput.files[0];
+        if (file.size > 5 * 1024 * 1024) throw new Error('File too large (max 5MB)');
+        fileName = file.name;
+        fileType = file.type || 'application/octet-stream';
+        fileData = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result.split(',')[1]);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+      }
       // Create new forwarded item
       const resp = await fetch('/api/tasks/' + taskId + '/forward', {
         method: 'POST',
@@ -1141,7 +1198,8 @@ Error generating stack: `+o.message+`
           title: origTitle + ' (Re-submitted)',
           description: desc,
           forwardedTo: 'registrar',
-          dueDate: due || null
+          dueDate: due || null,
+          fileName, fileData, fileType
         })
       });
       const data = await resp.json();
