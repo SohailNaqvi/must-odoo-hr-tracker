@@ -531,6 +531,11 @@ Error generating stack: `+o.message+`
             <input id="fwd-file" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.png,.jpg,.jpeg" style="width:100%;font-size:12px;font-family:inherit;box-sizing:border-box;" />
             <div id="fwd-file-info" style="display:none;margin-top:4px;padding:6px 10px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#065F46;"></div>
           </div>
+          <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:6px;">Due Date (optional)</label>
+            <input id="fwd-due-date" type="date" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;outline:none;" />
+            <div style="margin-top:4px;font-size:11px;color:#6b7280;">An overdue indicator will appear if the item is not completed by this date</div>
+          </div>
           <div id="fwd-error" style="display:none;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#dc2626;font-size:12px;margin-bottom:12px;"></div>
         </div>
         <div style="padding:16px 24px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:8px;background:#f9fafb;">
@@ -565,6 +570,8 @@ Error generating stack: `+o.message+`
     modal.querySelector('#fwd-description').value = '';
     modal.querySelector('#fwd-file').value = '';
     modal.querySelector('#fwd-file-info').style.display = 'none';
+    const dueDateInput = modal.querySelector('#fwd-due-date');
+    if (dueDateInput) dueDateInput.value = '';
     errorEl.style.display = 'none';
     
     if (forwardType === 'approval') {
@@ -648,7 +655,8 @@ Error generating stack: `+o.message+`
             forwardedTo: forwardType === 'info' ? fwdTarget : 'registrar',
             fileName: fileName,
             fileData: fileData,
-            fileType: fileType
+            fileType: fileType,
+            dueDate: (modal.querySelector('#fwd-due-date') && modal.querySelector('#fwd-due-date').value) || null
           })
         });
         
@@ -834,6 +842,22 @@ Error generating stack: `+o.message+`
     return decoded ? decoded.role : null;
   }
 
+  function getUserId() {
+    const tokenEl = document.getElementById('__app_token');
+    if (!tokenEl || !tokenEl.value) return null;
+    const decoded = decodeToken(tokenEl.value);
+    return decoded ? decoded.id : null;
+  }
+
+  function isOverdue(item) {
+    if (!item.due_date) return false;
+    if (item.status !== 'pending') return false;
+    const due = new Date(item.due_date);
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    return due < now;
+  }
+
   function getToken() {
     const tokenEl = document.getElementById('__app_token');
     return tokenEl ? tokenEl.value : '';
@@ -928,10 +952,20 @@ Error generating stack: `+o.message+`
         headers: { 'Authorization': 'Bearer ' + token }
       });
       const data = await resp.json();
-      cachedItems = data.forwardedItems || [];
+      const allItems = data.forwardedItems || [];
+      const role = getUserRole();
+      const myId = getUserId();
+      // For Director HR: only show items they forwarded
+      cachedItems = (role === 'directorHR') ? allItems.filter(i => i.forwarded_by === myId) : allItems;
       const pendingCount = cachedItems.filter(i => i.status === 'pending').length;
-      document.getElementById('approvals-count').textContent = pendingCount + ' pending item' + (pendingCount !== 1 ? 's' : '');
-      updateBadgeCount(pendingCount);
+      const rejectedCount = cachedItems.filter(i => i.status === 'rejected').length;
+      const overdueCount = cachedItems.filter(i => isOverdue(i)).length;
+      let summary = pendingCount + ' pending';
+      if (role === 'directorHR' && rejectedCount > 0) summary += ' · ' + rejectedCount + ' rejected';
+      if (overdueCount > 0) summary += ' · ' + overdueCount + ' overdue';
+      document.getElementById('approvals-count').textContent = summary;
+      // Badge: Director HR sees rejected count (red attention); others see pending
+      updateBadgeCount(role === 'directorHR' ? (rejectedCount + overdueCount) : pendingCount);
       // Render with active filter
       const activeFilter = approvalsPanel.querySelector('.approvals-filter.active');
       renderItems(activeFilter ? activeFilter.dataset.filter : 'pending');
@@ -952,9 +986,13 @@ Error generating stack: `+o.message+`
       return;
     }
 
+    const myRole = getUserRole();
+    const canRespond = ['registrar', 'admin'].includes(myRole);
     listEl.innerHTML = items.map(item => {
       const isApproval = item.forward_type === 'approval';
       const isPending = item.status === 'pending';
+      const overdue = isOverdue(item);
+      const isRejected = item.status === 'rejected';
       const typeBadgeBg = isApproval ? '#FFF7ED' : '#EFF6FF';
       const typeBadgeColor = isApproval ? '#E8792B' : '#1B3A5C';
       const typeBadgeBorder = isApproval ? '#FDBA74' : '#93C5FD';
@@ -966,7 +1004,7 @@ Error generating stack: `+o.message+`
       else if (item.status === 'rejected') statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#FEE2E2;color:#991B1B;font-size:10px;font-weight:600;">Rejected</span>';
       else statusBadge = '<span style="padding:2px 8px;border-radius:4px;background:#FEF3C7;color:#92400E;font-size:10px;font-weight:600;">Pending</span>';
 
-      const actionButtons = isPending ? `
+      const actionButtons = (isPending && canRespond) ? `
         <div style="display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6;">
           ${isApproval ? `
             <button onclick="window.__approveItem(${item.id}, 'approved')" style="flex:1;padding:8px 12px;border:none;border-radius:8px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">✓ Approve</button>
@@ -977,8 +1015,13 @@ Error generating stack: `+o.message+`
         </div>
       ` : (item.response_note ? `<div style="margin-top:8px;padding:8px 10px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#065F46;"><strong>Response:</strong> ${item.response_note}</div>` : '');
 
+      const cardBorder = isRejected ? 'border:2px solid #dc2626;background:#FEF2F2;' : (overdue ? 'border:2px solid #E8792B;background:#FFF7ED;' : 'border:1px solid #e5e7eb;background:#fff;' + (isPending ? 'border-left:3px solid ' + typeBadgeColor + ';' : ''));
+      const alertBanner = isRejected
+        ? '<div style="padding:6px 10px;margin-bottom:8px;background:#dc2626;color:#fff;border-radius:6px;font-size:11px;font-weight:600;">⚠ Rejected by Registrar — requires your attention</div>'
+        : (overdue ? '<div style="padding:6px 10px;margin-bottom:8px;background:#E8792B;color:#fff;border-radius:6px;font-size:11px;font-weight:600;">⏰ Overdue — due ' + formatDate(item.due_date) + '</div>' : '');
       return `
-        <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;background:#fff;${isPending ? 'border-left:3px solid ' + typeBadgeColor + ';' : ''}">
+        <div style="border-radius:12px;padding:16px;margin-bottom:12px;${cardBorder}">
+          ${alertBanner}
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <span style="padding:2px 8px;border-radius:4px;background:${typeBadgeBg};color:${typeBadgeColor};border:1px solid ${typeBadgeBorder};font-size:10px;font-weight:600;">${typeLabel}</span>
             ${statusBadge}
@@ -993,6 +1036,7 @@ Error generating stack: `+o.message+`
             <span title="Forwarded by">👤 ${item.forwarded_by_name || 'Unknown'}</span>
             <span title="Forwarded on">📅 ${formatDate(item.forwarded_at)}</span>
             ${item.responded_at ? '<span title="Responded on">✅ ' + formatDate(item.responded_at) + '</span>' : ''}
+            ${item.due_date ? '<span title="Due date" style="' + (overdue ? 'color:#dc2626;font-weight:600;' : '') + '">⏱ Due ' + formatDate(item.due_date) + '</span>' : ''}
           </div>
           ${item.file_name ? '<div style="margin-top:8px;"><button onclick="window.__downloadFile(' + item.id + ',\'' + item.file_name.replace(/'/g, "\\'") + '\')" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:#EFF6FF;border:1px solid #93C5FD;color:#1B3A5C;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;">📎 ' + item.file_name + '</button></div>' : ''}
           ${actionButtons}
@@ -1062,7 +1106,7 @@ Error generating stack: `+o.message+`
   function injectApprovalsButton() {
     if (document.getElementById('approvals-btn')) return;
     const role = getUserRole();
-    if (!role || !['registrar', 'admin'].includes(role)) return;
+    if (!role || !['registrar', 'admin', 'directorHR'].includes(role)) return;
 
     // Find the header bar — look for the user info area
     const header = document.querySelector('.bg-white.border-b');
@@ -1089,9 +1133,11 @@ Error generating stack: `+o.message+`
   function createApprovalsButton() {
     const btn = document.createElement('button');
     btn.id = 'approvals-btn';
-    btn.title = 'View Forwarded Items';
+    const role = getUserRole();
+    const label = role === 'directorHR' ? '📤 My Forwards' : '📋 Approvals';
+    btn.title = role === 'directorHR' ? 'View your forwarded items and responses' : 'View Forwarded Items';
     btn.style.cssText = 'position:relative;padding:8px 14px;border-radius:10px;border:1px solid #E8792B;background:linear-gradient(135deg,#FFF7ED,#fff);color:#E8792B;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;display:flex;align-items:center;gap:6px;white-space:nowrap;box-shadow:0 1px 3px rgba(232,121,43,0.15);';
-    btn.innerHTML = '📋 Approvals <span class="approvals-dot" style="display:none;position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:9px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span>';
+    btn.innerHTML = label + ' <span class="approvals-dot" style="display:none;position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:9px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span>';
     btn.addEventListener('click', () => togglePanel(!panelVisible));
     approvalsBadge = btn;
 
@@ -1106,8 +1152,19 @@ Error generating stack: `+o.message+`
     try {
       const resp = await fetch('/api/forwarded', { headers: { 'Authorization': 'Bearer ' + token } });
       const data = await resp.json();
-      const pending = (data.forwardedItems || []).filter(i => i.status === 'pending').length;
-      updateBadgeCount(pending);
+      const role = getUserRole();
+      const myId = getUserId();
+      const items = role === 'directorHR'
+        ? (data.forwardedItems || []).filter(i => i.forwarded_by === myId)
+        : (data.forwardedItems || []);
+      if (role === 'directorHR') {
+        const rejected = items.filter(i => i.status === 'rejected').length;
+        const overdue = items.filter(i => isOverdue(i)).length;
+        updateBadgeCount(rejected + overdue);
+      } else {
+        const pending = items.filter(i => i.status === 'pending').length;
+        updateBadgeCount(pending);
+      }
     } catch {}
   }
 
@@ -1123,7 +1180,7 @@ Error generating stack: `+o.message+`
   // Also poll periodically for pending count
   setInterval(() => {
     const role = getUserRole();
-    if (role && ['registrar', 'admin'].includes(role)) {
+    if (role && ['registrar', 'admin', 'directorHR'].includes(role)) {
       fetchPendingCount();
     }
   }, 30000);
@@ -1472,11 +1529,31 @@ Error generating stack: `+o.message+`
             </select>
           </div>
           <div style="margin-bottom:14px;">
-            <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Assigned User</label>
+            <label style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">
+              <span>Assigned User</span>
+              <button type="button" id="org-create-user-btn" style="padding:3px 8px;border-radius:5px;border:1px solid #059669;background:#F0FDF4;color:#059669;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">+ Create New User</button>
+            </label>
             <select id="org-f-user" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;box-sizing:border-box;">
               <option value="">— Vacant —</option>
               ${userOptions}
             </select>
+            <div id="org-create-user-form" style="display:none;margin-top:8px;padding:12px;border:1px solid #059669;border-radius:8px;background:#F0FDF4;">
+              <div style="font-size:11px;font-weight:600;color:#065F46;margin-bottom:8px;">New User (default password: must2026)</div>
+              <input id="ncu-name" type="text" placeholder="Full Name (e.g. Ms. Jane Doe)" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:6px;" />
+              <input id="ncu-email" type="email" placeholder="Email (jane.doe@must.edu.pk)" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:6px;" />
+              <input id="ncu-username" type="text" placeholder="Username (e.g. jane.doe)" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:6px;" />
+              <select id="ncu-role" style="width:100%;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-family:inherit;box-sizing:border-box;margin-bottom:6px;">
+                <option value="directorHR">Director HR</option>
+                <option value="registrar">Registrar</option>
+                <option value="vpOps">VP Operations</option>
+                <option value="admin">Admin</option>
+              </select>
+              <div id="ncu-error" style="display:none;padding:4px 8px;background:#fef2f2;color:#dc2626;border-radius:4px;font-size:11px;margin-bottom:6px;"></div>
+              <div style="display:flex;gap:6px;">
+                <button type="button" id="ncu-submit" style="flex:1;padding:6px;border:none;border-radius:6px;background:#059669;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Create User</button>
+                <button type="button" id="ncu-cancel" style="padding:6px 12px;border:1px solid #d1d5db;border-radius:6px;background:#fff;color:#6b7280;font-size:12px;cursor:pointer;font-family:inherit;">Cancel</button>
+              </div>
+            </div>
           </div>
           <div style="margin-bottom:14px;">
             <label style="display:block;font-size:12px;font-weight:500;color:#374151;margin-bottom:4px;">Sort Order</label>
@@ -1491,6 +1568,45 @@ Error generating stack: `+o.message+`
     
     formOverlay.querySelector('#org-form-close').addEventListener('click', () => formOverlay.remove());
     formOverlay.addEventListener('click', (e) => { if (e.target === formOverlay) formOverlay.remove(); });
+
+    // Create user inline
+    const createBtn = formOverlay.querySelector('#org-create-user-btn');
+    const createForm = formOverlay.querySelector('#org-create-user-form');
+    createBtn.addEventListener('click', () => {
+      createForm.style.display = createForm.style.display === 'none' ? 'block' : 'none';
+    });
+    formOverlay.querySelector('#ncu-cancel').addEventListener('click', () => { createForm.style.display = 'none'; });
+    formOverlay.querySelector('#ncu-submit').addEventListener('click', async () => {
+      const name = formOverlay.querySelector('#ncu-name').value.trim();
+      const email = formOverlay.querySelector('#ncu-email').value.trim();
+      const username = formOverlay.querySelector('#ncu-username').value.trim();
+      const role = formOverlay.querySelector('#ncu-role').value;
+      const ncuErr = formOverlay.querySelector('#ncu-error');
+      if (!name || !email || !username) { ncuErr.textContent = 'Name, email and username are required'; ncuErr.style.display = 'block'; return; }
+      try {
+        const resp = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getToken() },
+          body: JSON.stringify({ username, password: 'must2026', displayName: name, role, email })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed');
+        // Refresh users list and select the new one
+        const usersResp = await fetch('/api/auth/users');
+        const usersData = await usersResp.json();
+        allUsers = usersData.users || [];
+        const sel = formOverlay.querySelector('#org-f-user');
+        sel.innerHTML = '<option value="">— Vacant —</option>' + allUsers.map(u => `<option value="${u.username}" ${u.username === username ? 'selected' : ''}>${u.display_name} (${u.role})</option>`).join('');
+        createForm.style.display = 'none';
+        formOverlay.querySelector('#ncu-name').value = '';
+        formOverlay.querySelector('#ncu-email').value = '';
+        formOverlay.querySelector('#ncu-username').value = '';
+        alert('✓ User "' + name + '" created with default password must2026. They will be prompted to change it on first login.');
+      } catch (err) {
+        ncuErr.textContent = err.message;
+        ncuErr.style.display = 'block';
+      }
+    });
     
     // Submit
     formOverlay.querySelector('#org-f-submit').addEventListener('click', async () => {

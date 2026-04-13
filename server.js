@@ -21,7 +21,11 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-const DB_PATH = path.join(__dirname, "db", "tracker.db");
+// DB_DIR env var supports Render Persistent Disk; falls back to local ./db
+const DB_DIR = process.env.DB_DIR || path.join(__dirname, "db");
+if (!fs.existsSync(DB_DIR)) { try { fs.mkdirSync(DB_DIR, { recursive: true }); } catch(e) {} }
+const DB_PATH = path.join(DB_DIR, "tracker.db");
+console.log("📁 DB path:", DB_PATH);
 let db; // sql.js database instance
 
 /* ══════════════════════════════════════════════════════════
@@ -143,6 +147,7 @@ async function initDb() {
   try { db.exec("ALTER TABLE forwarded_items ADD COLUMN file_name TEXT DEFAULT NULL"); } catch(e) {}
   try { db.exec("ALTER TABLE forwarded_items ADD COLUMN file_data TEXT DEFAULT NULL"); } catch(e) {}
   try { db.exec("ALTER TABLE forwarded_items ADD COLUMN file_type TEXT DEFAULT NULL"); } catch(e) {}
+  try { db.exec("ALTER TABLE forwarded_items ADD COLUMN due_date TEXT DEFAULT NULL"); } catch(e) {}
 
   // Migration: ensure org_positions table exists
   db.exec(`CREATE TABLE IF NOT EXISTS org_positions (
@@ -479,15 +484,15 @@ app.post("/api/tasks/:id/forward", authMiddleware, requireRole("admin", "directo
   const task = getP("SELECT * FROM tasks WHERE id = ?", [taskId]);
   if (!task) return res.status(404).json({ error: "Task not found" });
 
-  const { forwardType, title, description, fileName, fileData, fileType } = req.body;
+  const { forwardType, title, description, fileName, fileData, fileType, dueDate } = req.body;
   if (!forwardType || !title) return res.status(400).json({ error: "Forward type and title required" });
   if (!["approval", "info"].includes(forwardType)) return res.status(400).json({ error: "Invalid forward type" });
 
   const forwardedTo = forwardType === "approval" ? "registrar" : req.body.forwardedTo || "registrar";
 
   const { lastInsertRowid } = runP(
-    "INSERT INTO forwarded_items (task_id, forward_type, title, description, forwarded_by, forwarded_to, file_name, file_data, file_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    [taskId, forwardType, title, description || "", req.user.id, forwardedTo, fileName || null, fileData || null, fileType || null]
+    "INSERT INTO forwarded_items (task_id, forward_type, title, description, forwarded_by, forwarded_to, file_name, file_data, file_type, due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [taskId, forwardType, title, description || "", req.user.id, forwardedTo, fileName || null, fileData || null, fileType || null, dueDate || null]
   );
 
   // Record forwarding (don't change task status column due to CHECK constraint)
@@ -506,7 +511,7 @@ app.get("/api/forwarded", authMiddleware, (req, res) => {
   const items = allP(`
     SELECT fi.id, fi.task_id, fi.forward_type, fi.title, fi.description,
            fi.forwarded_by, fi.forwarded_to, fi.forwarded_at, fi.status,
-           fi.responded_at, fi.response_note, fi.file_name, fi.file_type,
+           fi.responded_at, fi.response_note, fi.file_name, fi.file_type, fi.due_date,
            t.label as task_label, t.category as task_category, 
            p.title as phase_title, p.phase_number,
            u.display_name as forwarded_by_name
