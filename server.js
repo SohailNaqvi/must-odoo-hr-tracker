@@ -503,6 +503,16 @@ app.put("/api/users/:id/reset-password", authMiddleware, requireRole("admin"), (
   res.json({ message: "Password reset" });
 });
 
+app.delete("/api/users/:id", authMiddleware, requireRole("admin"), (req, res) => {
+  const targetId = parseInt(req.params.id);
+  if (targetId === req.user.id) return res.status(400).json({ error: "Cannot remove yourself" });
+  const target = getP("SELECT id, username FROM users WHERE id = ?", [targetId]);
+  if (!target) return res.status(404).json({ error: "User not found" });
+  runP("UPDATE users SET active = 0 WHERE id = ?", [targetId]);
+  logAudit(req.user.id, "user_deactivated", "user", targetId, target.username, "inactive");
+  res.json({ message: "User deactivated" });
+});
+
 /* ══════════════════════════════════════════════════════════
    ROADMAP
    ══════════════════════════════════════════════════════════ */
