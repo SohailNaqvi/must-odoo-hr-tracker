@@ -44,7 +44,10 @@
     "tasks": [
       { "label": "Employee data collection form (mandatory vs optional fields separated)", "category": "document" },
       { "label": "Document upload checklist — CNIC, degrees, experience letters, appointment letter, contract, photo", "category": "document" },
-      { "label": "Data collection drive plan (who collects from whom, by when)", "category": "document" }
+      { "label": "Data collection drive plan (who collects from whom, by when)", "category": "document" },
+      { "label": "USAGE CHECK: Screenshot of Odoo showing 100% of employees have complete profiles with all mandatory fields populated", "category": "action" },
+      { "label": "USAGE CHECK: HR team demonstrates live lookup of any 5 random employees in Odoo — profile, contract, documents all present", "category": "action" },
+      { "label": "USAGE CHECK: Confirm all new hires in the past month were created in Odoo (not just on paper)", "category": "action" }
     ],
     "odooSteps": ["Create Schools as departments (Engineering, Nursing, Management, etc.)", "Create sub-departments within each School", "Set up job positions with correct hierarchy", "Create employee profiles — mandatory fields only", "Upload signed contracts and required documents", "Set reporting lines (Lecturer → HoD → Dean → VC)"],
     "prerequisites": ["Approved organogram", "Approved employee categories"],
@@ -58,7 +61,10 @@
     "tasks": [
       { "label": "Attendance parameters summary sheet", "category": "document" },
       { "label": "Biometric machine integration record", "category": "document" },
-      { "label": "Missing punch and exceptions register", "category": "document" }
+      { "label": "Missing punch and exceptions register", "category": "document" },
+      { "label": "USAGE CHECK: Export 1 full week of biometric attendance data from Odoo showing all employees — no manual register used in parallel", "category": "action" },
+      { "label": "USAGE CHECK: HR demonstrates resolving 3 real missing-punch exceptions through the Odoo exception workflow", "category": "action" },
+      { "label": "USAGE CHECK: Confirm manual attendance registers have been discontinued — all departments using Odoo exclusively", "category": "action" }
     ],
     "odooSteps": ["Create 3 work schedules: admin strict (9–5), faculty flexible, visiting lecture-based", "Set late arrival grace time per schedule", "Configure half-day deduction triggers", "Sync biometric machines with Odoo Attendance", "Assign each employee to correct work schedule", "Set up daily HR monitoring view"],
     "prerequisites": ["Attendance deduction rules (approved)", "Working hours policy (approved)", "Grace time and half-day policy (approved)"],
@@ -71,7 +77,10 @@
     "timeline": "Weeks 4–6",
     "tasks": [
       { "label": "Opening leave balance register (migration of existing balances)", "category": "document" },
-      { "label": "Leave allocation schedule (annual entitlements by category)", "category": "document" }
+      { "label": "Leave allocation schedule (annual entitlements by category)", "category": "document" },
+      { "label": "USAGE CHECK: Export last month's leave applications showing all 3 approval tiers (Employee → HoD → HR) processed in Odoo", "category": "action" },
+      { "label": "USAGE CHECK: Demonstrate that 3 real leave requests were submitted, approved, and reflected in attendance within Odoo", "category": "action" },
+      { "label": "USAGE CHECK: Confirm verbal/WhatsApp leave approvals have been discontinued — all leave goes through Odoo", "category": "action" }
     ],
     "odooSteps": ["Create leave types: Casual, Sick, Earned, LWP, Study Leave (faculty)", "Set annual entitlements by employee category", "Configure carry-forward rules", "Set approval workflow: Employee → HoD → HR (3-tier)", "Allocate opening leave balances", "Mark visiting faculty as ineligible for paid leave"],
     "prerequisites": ["Leave types and entitlements per category (approved)", "Carry-forward rules (approved)", "Leave approval hierarchy (approved)"],
@@ -86,7 +95,11 @@
       { "label": "Salary grade chart (approved by Finance + BOG)", "category": "document" },
       { "label": "Payroll input template for monthly variables", "category": "document" },
       { "label": "Loan register (existing advances to be migrated)", "category": "document" },
-      { "label": "Tax calculation sheet (per employee where applicable)", "category": "document" }
+      { "label": "Tax calculation sheet (per employee where applicable)", "category": "document" },
+      { "label": "USAGE CHECK: Last month's payroll was computed entirely in Odoo — payslips generated, reconciled, and approved in system", "category": "action" },
+      { "label": "USAGE CHECK: Attendance deductions and leave encashments in payslips match Odoo Attendance and Leave modules (cross-verify 10 employees)", "category": "action" },
+      { "label": "USAGE CHECK: Bank transfer file for salary disbursement was generated from Odoo (not Excel)", "category": "action" },
+      { "label": "USAGE CHECK: Parallel payroll discontinued — Odoo is the sole payroll processing system", "category": "action" }
     ],
     "odooSteps": ["Create 4 salary structures: permanent faculty, contract faculty, admin, visiting", "Configure allowances (house, medical, transport)", "Configure deductions (late, EOBI, loan installments)", "Link attendance and leave to payroll engine", "Assign each employee to correct salary structure", "Run 2 months parallel payroll (Odoo vs manual)", "Generate and archive first official payslips"],
     "prerequisites": ["Salary bands approved", "Salary structure components defined", "Per-lecture rate for visiting faculty", "Attendance fully functional", "Leave management live"],
@@ -102,7 +115,10 @@
       { "label": "Contract templates v1.0 (4 versions)", "category": "document" },
       { "label": "Probation completion notice template", "category": "document" },
       { "label": "Confirmation/regularization letter template", "category": "document" },
-      { "label": "Contract renewal letter template", "category": "document" }
+      { "label": "Contract renewal letter template", "category": "document" },
+      { "label": "USAGE CHECK: All active employees have valid contracts in Odoo with correct start/end dates — export contract report", "category": "action" },
+      { "label": "USAGE CHECK: Demonstrate that Odoo generated at least 1 probation completion alert that was actioned by Director HR", "category": "action" },
+      { "label": "USAGE CHECK: Last confirmation/renewal letter was generated from Odoo (not typed manually)", "category": "action" }
     ],
     "odooSteps": ["Assign contract type to every employee", "Set probation end dates with alerts", "Configure 30-day pre-probation-end alert to Director HR", "Set contract expiry alerts", "Generate confirmation letters from Odoo"],
     "prerequisites": ["Probation period per category (approved)", "Confirmation criteria (approved)", "Contract types and renewal rules (approved)"],
@@ -118,7 +134,10 @@
       { "label": "Application form (online via Odoo portal)", "category": "document" },
       { "label": "Shortlisting criteria matrix per job category", "category": "document" },
       { "label": "Interview score sheet (structured, per HEC criteria)", "category": "document" },
-      { "label": "Offer/appointment letter template (auto-generated)", "category": "document" }
+      { "label": "Offer/appointment letter template (auto-generated)", "category": "document" },
+      { "label": "USAGE CHECK: Last recruitment drive was conducted end-to-end in Odoo — applications received, shortlisted, interviewed, and offered through the system", "category": "action" },
+      { "label": "USAGE CHECK: Demonstrate that interview scores for the last hire are recorded in Odoo with selection committee sign-off", "category": "action" },
+      { "label": "USAGE CHECK: Confirm no recruitment is being processed outside Odoo (no parallel Excel trackers)", "category": "action" }
     ],
     "odooSteps": ["Create pipeline: Application → Shortlisted → Interview → Scored → Offer → Appointed", "Configure interview scheduling", "Set up interview score entry forms", "Link appointed candidate to employee profile", "Generate appointment letter automatically"],
     "prerequisites": ["HEC-aligned faculty recruitment policy", "Merit criteria and scoring rubric", "Selection committee composition"],
@@ -138,7 +157,10 @@
       { "label": "HoD / supervisor evaluation form", "category": "document" },
       { "label": "Student feedback aggregation form", "category": "document" },
       { "label": "Performance review meeting record template", "category": "document" },
-      { "label": "Research and publication log per faculty member", "category": "document" }
+      { "label": "Research and publication log per faculty member", "category": "document" },
+      { "label": "USAGE CHECK: At least 1 complete appraisal cycle has been run in Odoo — self-assessment submitted, supervisor reviewed, HR closed", "category": "action" },
+      { "label": "USAGE CHECK: Student feedback scores for last semester have been uploaded to Odoo and linked to faculty profiles", "category": "action" },
+      { "label": "USAGE CHECK: Research publications for the current year are logged in Odoo for all eligible faculty", "category": "action" }
     ],
     "odooSteps": ["Create appraisal templates (faculty and admin separately)", "Set up annual appraisal cycle with notifications", "Configure workflow: self-assessment → supervisor → HR → meeting", "Upload research publications and feedback scores"],
     "prerequisites": [],
@@ -160,7 +182,10 @@
       { "label": "Resignation acceptance letter template", "category": "document" },
       { "label": "No-objection / clearance form (multi-department)", "category": "document" },
       { "label": "Final settlement computation sheet", "category": "document" },
-      { "label": "Experience / relieving letter template", "category": "document" }
+      { "label": "Experience / relieving letter template", "category": "document" },
+      { "label": "USAGE CHECK: Last employee exit (resignation/termination) was processed entirely in Odoo — clearance, settlement, relieving letter all in system", "category": "action" },
+      { "label": "USAGE CHECK: Any disciplinary action taken in the past quarter has a record in Odoo (warning letters, show-cause notices)", "category": "action" },
+      { "label": "USAGE CHECK: Experience/relieving letters are being generated from Odoo (not typed manually)", "category": "action" }
     ],
     "odooSteps": ["Set up disciplinary record fields per employee", "Configure exit workflow: resignation → clearance → settlement → relieved", "Link clearance to Finance and IT (multi-department sign-off)", "Generate experience letter automatically", "Archive exited employee records (not deleted)"],
     "prerequisites": [],
@@ -173,7 +198,10 @@
     "timeline": "Month 6+ (ongoing)",
     "tasks": [
       { "label": "Monthly HR report template (generated from Odoo)", "category": "document" },
-      { "label": "HR dashboard design spec (for Odoo admin)", "category": "document" }
+      { "label": "HR dashboard design spec (for Odoo admin)", "category": "document" },
+      { "label": "USAGE CHECK: Last monthly HR report to VC was generated from Odoo data — not compiled manually from departments", "category": "action" },
+      { "label": "USAGE CHECK: Director HR demonstrates pulling real-time headcount, attendance, and payroll data from Odoo dashboard in under 2 minutes", "category": "action" },
+      { "label": "USAGE CHECK: Confirm no parallel manual reporting systems (Excel, paper) remain — Odoo is the single source of truth for all HR data", "category": "action" }
     ],
     "odooSteps": ["Configure headcount dashboard — faculty vs admin, by department", "Build faculty-to-student ratio tracker", "Set up payroll cost by department report", "Configure attendance compliance summary", "Build recruitment pipeline dashboard", "Configure retention and turnover analytics", "Schedule automated monthly reports to VC and Registrar"],
     "prerequisites": [],
